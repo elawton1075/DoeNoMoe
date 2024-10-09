@@ -19,7 +19,7 @@ def search_missing_persons(search_params):
     json_payload = search_params
 
     # Perform the POST request
-    response = requests.post(url, headers=headers, json=json_payload)
+    response = requests.post(url, headers=headers, json=json_payload, timeout=20)
 
     # Check if the request was successful
     if response.status_code == 200:
