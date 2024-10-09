@@ -1,3 +1,5 @@
+import sys
+
 import requests
 
 def search_missing_persons(search_params):
@@ -54,7 +56,11 @@ search_params = {
 }
 
 results = search_missing_persons(search_params)
+print(search_params, file=sys.stderr)
+print('Matches : ', file=sys.stderr)
+print(results.get('count'), file=sys.stderr)
 processed_results = process_missing_persons_data(results)
+
 
 # Print results
 for case in processed_results:
