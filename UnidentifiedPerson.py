@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, Iterable, List, Optional
@@ -213,6 +214,15 @@ def _extract_condition(case: Dict[str, Any]) -> str:
     return cond or "N/A"
 
 
+def _is_not_recognizable_condition(case: Dict[str, Any]) -> bool:
+    """Return True when condition text contains a not-recognizable marker."""
+    condition = _extract_condition(case)
+    if not isinstance(condition, str):
+        condition = str(condition or "")
+    normalized = re.sub(r"[^a-z0-9]+", " ", condition.lower()).strip()
+    return "not recognizable" in normalized
+
+
 # ---------------------------------------------------------------------------
 # Normalization + filtering
 # ---------------------------------------------------------------------------
@@ -259,7 +269,12 @@ def process_unidentified_persons_data(
 
 def _matches_filters(case: Dict[str, Any], flt: Dict[str, Any]) -> bool:
     if not flt:
-        return True
+        flt = {}
+
+    # For matching workflows, skip cases where remains are not recognizable.
+    if _is_not_recognizable_condition(case):
+        return False
+
     state = flt.get("state")
     if state and _extract_state(case).upper() != state.upper():
         return False

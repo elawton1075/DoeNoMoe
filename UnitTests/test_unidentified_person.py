@@ -40,6 +40,7 @@ def _fake_case_detail(
     status: str = "Unidentified Deceased",
     age_from: int = 20,
     age_to: int = 30,
+    condition: str = "Recognizable",
 ) -> dict:
     return {
         "id": i,
@@ -61,7 +62,7 @@ def _fake_case_detail(
             },
             "circumstancesOfRecovery": f"details {i}",
         },
-        "detailsOfRecovery": {"conditionOfRemains": {"name": "Not recognizable"}},
+        "detailsOfRecovery": {"conditionOfRemains": {"name": condition}},
     }
 
 
@@ -94,7 +95,7 @@ class BuildSearchParamsTests(unittest.TestCase):
 
 class ProcessTests(unittest.TestCase):
     def test_normalizes_details(self):
-        details = [_fake_case_detail(i) for i in range(5)]
+        details = [_fake_case_detail(i, condition="Not recognizable") for i in range(5)]
         rows = up.process_unidentified_persons_data(details)
         self.assertEqual(len(rows), 5)
         self.assertEqual(rows[0]["Case Number"], "UP00000")
@@ -190,6 +191,32 @@ class MockedSearchTests(unittest.TestCase):
                 detail_fetcher=lambda i: details[i],
             )
         self.assertEqual({r["Case Number"] for r in rows}, {"UP00000"})
+
+    def test_fetch_cases_excludes_not_recognizable(self):
+        details = {
+            0: _fake_case_detail(0, condition="Not recognizable"),
+            1: _fake_case_detail(1, condition="Recognizable"),
+        }
+        fake_search = {"count": 2, "results": [{"namus2Number": 0}, {"namus2Number": 1}]}
+        with patch.object(up, "search_unidentified_persons", return_value=fake_search):
+            rows = up.fetch_cases(
+                up.build_search_params(take=2),
+                detail_fetcher=lambda i: details[i],
+            )
+        self.assertEqual({r["Case Number"] for r in rows}, {"UP00001"})
+
+    def test_fetch_cases_excludes_not_recognizable_with_extra_text(self):
+        details = {
+            0: _fake_case_detail(0, condition="Not recognizable, advanced decomposition"),
+            1: _fake_case_detail(1, condition="Recognizable, partial facial features"),
+        }
+        fake_search = {"count": 2, "results": [{"namus2Number": 0}, {"namus2Number": 1}]}
+        with patch.object(up, "search_unidentified_persons", return_value=fake_search):
+            rows = up.fetch_cases(
+                up.build_search_params(take=2),
+                detail_fetcher=lambda i: details[i],
+            )
+        self.assertEqual({r["Case Number"] for r in rows}, {"UP00001"})
 
 
 @unittest.skipUnless(

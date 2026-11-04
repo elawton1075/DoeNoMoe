@@ -23,9 +23,13 @@ There are far too many missing persons and unidentified persons; today cold case
 | `MissingPerson.py`                       | CLI + library for the NamUs **Missing Persons** case set |
 | `UnidentifiedPerson.py`                  | CLI + library for the NamUs **Unidentified Persons** case set |
 | `UnclaimedPerson.py`                     | CLI + library for the NamUs **Unclaimed Persons** case set |
+| `CaseOrchestrator.py`                    | Higher-level CLI that queries all three case sets and merges results |
+| `CaseCounts.py`                          | Count-only CLI for Missing, Unidentified, and Unclaimed case sets |
 | `UnitTests/test_missing_person.py`       | Unit tests for `MissingPerson.py` (mocked + optional live) |
 | `UnitTests/test_unidentified_person.py`  | Unit tests for `UnidentifiedPerson.py` (mocked + optional live) |
 | `UnitTests/test_unclaimed_person.py`     | Unit tests for `UnclaimedPerson.py` (mocked + optional live) |
+| `UnitTests/test_case_orchestrator.py`    | Unit tests for `CaseOrchestrator.py` |
+| `UnitTests/test_case_counts.py`          | Unit tests for `CaseCounts.py` |
 | `requirements.txt`                       | Runtime dependencies |
 
 ## Requirements
@@ -96,6 +100,9 @@ Flags: `--take`, `--skip`, `--state`, `--age-min`, `--age-max`, `--sex`,
 Age filtering uses **interval-overlap matching** against each case's
 `[estimatedAgeFrom, estimatedAgeTo]` range.
 
+For matching workflows, cases with `Condition of Remains` equal to `Not recognizable`
+are currently excluded from `fetch_cases` output.
+
 Normalized fields per case:
 `Case Number`, `NCMEC Number`, `Status`, `Estimated Age`, `Sex`, `Ethnicity`,
 `Date Found`, `Location`, `Condition of Remains`, `Details`.
@@ -150,6 +157,47 @@ ucp_cases = ucp.fetch_cases(ucp.build_search_params(
 
 All three `fetch_cases` calls accept an optional `session=requests.Session()`
 and a `detail_fetcher=` hook (useful for tests and for injecting a cache).
+
+### Combined query across all three case sets
+
+```bash
+# Pull all three case sets together and print a text report
+.venv/bin/python CaseOrchestrator.py --take 10 --state CA
+
+# JSON output with shared filters + case-set specific flags
+.venv/bin/python CaseOrchestrator.py \
+    --take 50 --state TX --sex Male --age-min 20 --age-max 45 \
+    --status "Unidentified Deceased" --only-unresolved --json
+```
+
+The combined JSON payload includes:
+
+- `counts`: number of rows returned per case set
+- `total`: merged row count
+- `cases`: normalized case rows from all sets, each tagged with `Case Set`
+
+### Count entries across all three case sets
+
+```bash
+# Count all three case sets
+.venv/bin/python CaseCounts.py
+
+# Count with filters and JSON output
+.venv/bin/python CaseCounts.py \
+    --state CA --sex Female --age-min 18 --age-max 65 --json
+```
+
+The count payload includes:
+
+- `counts`: top-level Search count for each case set
+- `total`: sum of those counts
+
+Current count snapshot as of November 3, 2026:
+
+- Total: 65790
+- Missing Persons: 26607
+- Unidentified Persons: 15521
+- Unclaimed Persons: 23662
 
 ## Running tests
 
