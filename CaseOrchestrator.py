@@ -1,8 +1,8 @@
 """
 CaseOrchestrator.py
 
-Higher level script that runs all three NamUs case-set modules and combines
-normalized results into one payload.
+Higher level script that runs Missing and Unidentified full export flows and
+combines their full payload results. Unclaimed is intentionally skipped for now.
 """
 
 from __future__ import annotations
@@ -13,73 +13,45 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import MissingPerson as missing_person
-import UnclaimedPerson as unclaimed_person
-import UnidentifiedPerson as unidentified_person
+from CaseParser import CaseParser
+import MissingFullExport as missing_full_export
+import UnidentifiedFullExport as unidentified_full_export
+parser = CaseParser()
 
 
-def build_case_set_params(args: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
-    """Build per-module search params from one shared CLI argument set."""
-    return {
-        "Missing Persons": missing_person.build_search_params(
-            take=args.take,
-            skip=args.skip,
-            state=args.state,
-            age_min=args.age_min,
-            age_max=args.age_max,
-            sex=args.sex,
-            race_ethnicity=args.race_ethnicity,
-        ),
-        "Unidentified Persons": unidentified_person.build_search_params(
-            take=args.take,
-            skip=args.skip,
-            state=args.state,
-            age_min=args.age_min,
-            age_max=args.age_max,
-            sex=args.sex,
-            race_ethnicity=args.race_ethnicity,
-            status=args.status,
-        ),
-        "Unclaimed Persons": unclaimed_person.build_search_params(
-            take=args.take,
-            skip=args.skip,
-            state=args.state,
-            sex=args.sex,
-            race_ethnicity=args.race_ethnicity,
-            year_of_birth_min=args.year_of_birth_min,
-            year_of_birth_max=args.year_of_birth_max,
-            age_min=args.age_min,
-            age_max=args.age_max,
-            only_unresolved=args.only_unresolved,
-        ),
-    }
+def _export_case_set(
+    case_set: str,
+    payload: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    rows = payload.get("cases", [])
+    for row in rows:
+        row["Case Set"] = case_set
+        parsed = parser.parse_case(row, case_set)
+        row.clear()
+        row.update(parsed)
+    return rows
 
 
 def fetch_all_case_sets(args: argparse.Namespace) -> Dict[str, Any]:
-    """Fetch all three case sets in parallel and return merged output."""
-    params = build_case_set_params(args)
-
-    fetcher_type = Callable[[Dict[str, Any]], List[Dict[str, Any]]]
-    jobs: List[Tuple[str, fetcher_type, Dict[str, Any]]] = [
-        ("Missing Persons", missing_person.fetch_cases, params["Missing Persons"]),
-        ("Unidentified Persons", unidentified_person.fetch_cases, params["Unidentified Persons"]),
-        ("Unclaimed Persons", unclaimed_person.fetch_cases, params["Unclaimed Persons"]),
+    """Fetch Missing and Unidentified full exports in parallel."""
+    fetcher_type = Callable[[argparse.Namespace], Dict[str, Any]]
+    jobs: List[Tuple[str, fetcher_type]] = [
+        ("Missing Persons", missing_full_export.fetch_missing_details),
+        ("Unidentified Persons", unidentified_full_export.fetch_unidentified_details),
     ]
 
     results_by_set: Dict[str, List[Dict[str, Any]]] = {}
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         future_to_name = {
-            pool.submit(fetcher, search_params): case_set
-            for case_set, fetcher, search_params in jobs
+            pool.submit(fetcher, args): case_set
+            for case_set, fetcher in jobs
         }
         for future, case_set in future_to_name.items():
-            rows = future.result()
-            for row in rows:
-                row["Case Set"] = case_set
+            rows = _export_case_set(case_set, future.result())
             results_by_set[case_set] = rows
 
     merged: List[Dict[str, Any]] = []
-    for case_set in ["Missing Persons", "Unidentified Persons", "Unclaimed Persons"]:
+    for case_set in ["Missing Persons", "Unidentified Persons"]:
         merged.extend(results_by_set.get(case_set, []))
 
     counts = {k: len(v) for k, v in results_by_set.items()}
@@ -92,7 +64,7 @@ def fetch_all_case_sets(args: argparse.Namespace) -> Dict[str, Any]:
 
 def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Query Missing, Unidentified, and Unclaimed NamUs case sets together."
+        description="Query Missing and Unidentified NamUs case sets using full-export flows."
     )
     p.add_argument("--take", type=int, default=100)
     p.add_argument("--skip", type=int, default=0)
@@ -102,13 +74,8 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--sex", default=None)
     p.add_argument("--race-ethnicity", default=None)
     p.add_argument("--status", default=None, help="For Unidentified Persons only")
-    p.add_argument("--yob-min", type=int, default=None, dest="year_of_birth_min")
-    p.add_argument("--yob-max", type=int, default=None, dest="year_of_birth_max")
-    p.add_argument(
-        "--only-unresolved",
-        action="store_true",
-        help="For Unclaimed Persons only",
-    )
+    p.add_argument("--fetch-all", action="store_true", help="Fetch all pages for both case sets")
+    p.add_argument("--max-workers", type=int, default=8, help="Detail fetch worker count per case set")
     p.add_argument("--json", action="store_true", help="Emit JSON instead of text.")
     return p.parse_args(argv)
 
