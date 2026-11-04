@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 import requests
 
 import UnidentifiedPerson as up
+from CaseParser import CaseParser
 
 CASE_LINK_TEMPLATE = "https://www.namus.gov/UnidentifiedPersons/Case#/{id}?nav"
 
@@ -39,6 +40,11 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--max-workers", type=int, default=8)
     p.add_argument("--output", default="unidentified_full_cases.json", help="Output JSON path")
     p.add_argument("--print-json", action="store_true", help="Also print JSON to stdout")
+    p.add_argument(
+        "--parsed",
+        action="store_true",
+        help="Write parsed cases (Breakdown plus flattened fields) instead of raw payloads",
+    )
     return p.parse_args(argv)
 
 
@@ -145,7 +151,8 @@ def fetch_unidentified_details(
 def main(argv: Optional[List[str]] = None) -> int:
     args = _parse_args(argv)
     result = fetch_unidentified_details(args)
-
+    if args.parsed:
+        result = {**result, "cases": CaseParser().parse_cases(result["cases"], "Unidentified Persons")}
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, default=str)
 

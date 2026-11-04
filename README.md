@@ -27,7 +27,8 @@ There are far too many missing persons and unidentified persons; today cold case
 | `CaseCounts.py`                          | Count-only CLI for Missing, Unidentified, and Unclaimed case sets |
 | `UnidentifiedFullExport.py`              | Full-payload export for unidentified cases with case link and photo marker |
 | `MissingFullExport.py`                   | Full-payload export for missing-person cases with case link |
-| `CaseParser.py`                          | Reusable parser object for Missing + Unidentified full case payloads |
+| `CaseParser.py`                          | Reusable parser that builds a typed custom object and serialized output |
+| `CaseModels/`                            | Typed custom objects for parsed case details, one file per class (`ParsedCase`, `CaseBreakdown`, `CaseIdentifiers`, `CaseDemographics`, `CaseAge`, `CasePhysicalDescription`, `ClothingItem`, `ClothingAndAccessories`, `PhysicalFeatureItem`, `PhysicalFeatures`, `CaseCircumstances`, `CaseMedia`, `InvestigatingAgency`, `AgencySelection`, `AgencyDetails`, `NamedValue`, `ValueRange`) |
 | `UnitTests/test_missing_person.py`       | Unit tests for `MissingPerson.py` (mocked + optional live) |
 | `UnitTests/test_unidentified_person.py`  | Unit tests for `UnidentifiedPerson.py` (mocked + optional live) |
 | `UnitTests/test_unclaimed_person.py`     | Unit tests for `UnclaimedPerson.py` (mocked + optional live) |
@@ -36,6 +37,8 @@ There are far too many missing persons and unidentified persons; today cold case
 | `UnitTests/test_unidentified_full_export.py` | Unit tests for `UnidentifiedFullExport.py` |
 | `UnitTests/test_missing_full_export.py`  | Unit tests for `MissingFullExport.py` |
 | `UnitTests/test_case_parser.py`          | Unit tests for `CaseParser.py` |
+| `UnitTests/test_case_models.py`          | Unit tests for the `CaseModels/` package |
+| `UnitTests/test_export_parsed_output.py` | Tests for the `--parsed` output of both full export scripts |
 | `requirements.txt`                       | Runtime dependencies |
 
 ## Requirements
@@ -176,7 +179,15 @@ and a `detail_fetcher=` hook (useful for tests and for injecting a cache).
     --status "Unidentified Deceased" --fetch-all --json
 ```
 
-`CaseOrchestrator.py` intentionally skips Unclaimed Persons for now.
+`CaseOrchestrator.py` intentionally skips Unclaimed Persons for now. `--take` defaults to 5 per case set.
+
+Without `--json`, each case prints a readable report of everything in its `Breakdown`.
+The first line is the case set and name (or case number). Then one section per model:
+Identifiers, Demographics, Age, Physical Description, Clothing and Accessories,
+Physical Features, Circumstances, Investigating Agencies (name, city, and state
+for each), Media, and Vehicles. Date of birth and all the age ranges are grouped under Age. Empty values
+are left out, and a section with nothing to show prints `None`.
+Use `--json` for the full parsed payload.
 
 The combined JSON payload includes:
 
@@ -186,23 +197,42 @@ The combined JSON payload includes:
 
 Each case in `cases` also includes a `Breakdown` object with:
 
-- `Identifiers`: ID values, case numbers, status, resolved flag, case link
+- `Identifiers`: ID values, case numbers, resolved flag, case link
 - `Demographics`: name parts, date and year of birth, sex, gender, ethnicity, race
-- `Age`: unified min and max values, plus estimated and missing specific min and max fields
+- `Age`: three `{Min, Max}` ranges. `When Missing` and `Now` are filled for Missing Persons (`computedMissing*Age` and `current*Age`). `Projected Birth Years` is filled for both case sets so they can be compared (see below)
 - `Physical Description`: height and weight ranges, eye and hair attributes, distinctive features
 - `Clothing and Accessories`: item count and parsed item list with category, type, color, size, brand, description
 - `Physical Features`: item count and parsed item list with type, location, value, description
-- `Eye Color`: parsed scalar field from nested physical description data
-- `Hair Color`: parsed scalar field from nested physical description data
-- `Physical Features Summary`: comma-separated summary of parsed physical feature types or descriptions
-- `Circumstances`: location fields, date fields, and disappearance and recovery narratives
-- `Investigating Agencies`: agency name list
-- `Investigating Agencies Summary`: comma-separated agency names
+- `Circumstances`: status, location fields, date fields, and disappearance and recovery narratives
+- `Investigating Agencies`: list of agency objects, each with id, case owner flag, name, city, state, county, case number, date reported, and a `Selection` holding the agency record (street, city, county, zip, state, phone, jurisdiction, agency type, approved flag, website). State, county, jurisdiction, and agency type are `{ID, Name, Localized Name, Display Name}` objects
 - `Media`: photo presence flag, image count, document count
 - `Vehicles Count`: number of vehicle records attached to the case
 - `Top Level Keys`: sorted list of available top level keys in the raw case payload
 
-For easier downstream matching, each case row also repeats these flattened fields at top level:
+Each value lives in exactly one nested object. Eye color, hair color, and the
+two summaries are derived from those objects, not stored again in `Breakdown`.
+
+**Projected birth years** let Missing and Unidentified cases be compared on the
+same scale. An age of N means N <= age < N + 1, so the oldest possible birth year
+is `year - max_age - 1` and the youngest is `year - min_age`.
+
+| Case set | Birth years come from |
+|---|---|
+| Missing Persons | An exact birth date or year of birth when NamUs has one, otherwise the age when missing and the last contact date (`dateOfLastContact`, or `sighting.date`) |
+| Unidentified Persons | The estimated age range (`estimatedAgeFrom` and `estimatedAgeTo`) and `dateFound` |
+
+The range stays empty (`Min` and `Max` are `null`) when the needed age or date is
+missing. Some unidentified cases only carry an age group such as "Adult - Pre 40"
+instead of numeric ages, and those are not projected. Two cases can be compared
+with `ValueRange.overlaps()`:
+
+```python
+missing.breakdown.age.projected_birth_years.overlaps(
+    unidentified.breakdown.age.projected_birth_years
+)
+```
+
+For easier downstream matching, each case row repeats these derived fields at top level:
 
 - `Eye Color`
 - `Hair Color`
@@ -211,6 +241,10 @@ For easier downstream matching, each case row also repeats these flattened field
 
 To avoid duplication, raw nested source blobs that are parsed into these fields
 are removed from each case row in orchestrator output.
+
+`CaseParser.py` also exposes `parse_case_object(case, case_set)` which returns a
+typed `ParsedCase` object from the `CaseModels/` package before serialization, this object
+contains all parsed details in custom section objects.
 
 ### Count entries across all three case sets
 
@@ -252,6 +286,14 @@ Each exported case keeps the full NamUs detail payload and adds:
 - `Case Link`: public URL like `https://www.namus.gov/UnidentifiedPersons/Case#/163354?nav`
 - `Has Photo`: `true` when `images`, `defaultImage`, or default-image URL fields are present
 
+Add `--parsed` to write parsed cases instead of raw payloads. Each case then has
+the `Breakdown` object and flattened fields described under the orchestrator, and
+the raw blobs that were parsed are removed:
+
+```bash
+.venv/bin/python UnidentifiedFullExport.py --take 100 --parsed --output unidentified_parsed.json
+```
+
 ### Export full missing-person case records with case link
 
 ```bash
@@ -267,6 +309,13 @@ Each exported case keeps the full NamUs detail payload and adds:
 Each exported case keeps the full NamUs detail payload and adds:
 
 - `Case Link`: public URL like `https://www.namus.gov/MissingPersons/Case#/163404?nav`
+
+Add `--parsed` to write parsed cases instead of raw payloads, the same as for the
+unidentified export:
+
+```bash
+.venv/bin/python MissingFullExport.py --take 100 --parsed --output missing_parsed.json
+```
 
 ## Running tests
 

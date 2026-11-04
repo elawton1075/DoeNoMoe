@@ -1,0 +1,121 @@
+{
+  "id": 163354,
+  "idFormatted": "UP163354",
+  "caseNumber": "UP-24-163354",
+  "caseIsResolved": false,
+  "Case Link": "https://www.namus.gov/UnidentifiedPersons/Case#/163354?nav",
+  "Case Set": "Unidentified Persons",
+  "caseIdentification": {
+    "caseNumber": "UP-24-163354",
+    "namusNumber": "163354",
+    "agencyCaseNumber": "SO-2024-0119"
+  },
+  "subjectDescription": {
+    "estimatedAgeFrom": 25,
+    "estimatedAgeTo": 35,
+    "sex": {
+      "name": "Female"
+    },
+    "primaryEthnicity": {
+      "name": "Hispanic/Latino"
+    },
+    "primaryRace": {
+      "name": "White/Caucasian"
+    }
+  },
+  "physicalDescription": {
+    "heightFrom": 62,
+    "heightTo": 66,
+    "weightFrom": 115,
+    "weightTo": 140,
+    "eyeColor": {
+      "name": "Brown"
+    },
+    "hairColor": {
+      "name": "Black"
+    },
+    "headHair": "Shoulder length",
+    "distinctiveFeatures": "Mole under left eye"
+  },
+  "physicalFeatureDescriptions": [
+    {
+      "physicalFeatureType": {
+        "name": "Tattoo"
+      },
+      "bodyLocation": "Right forearm",
+      "description": "Rose tattoo"
+    },
+    {
+      "physicalFeatureType": {
+        "name": "Scar"
+      },
+      "bodyLocation": "Left knee",
+      "description": "Surgical scar"
+    }
+  ],
+  "clothingAndAccessoriesArticles": [
+    {
+      "articleCategory": {
+        "name": "Top"
+      },
+      "articleType": {
+        "name": "T-shirt"
+      },
+      "color": {
+        "name": "Blue"
+      },
+      "description": "Blue cotton shirt"
+    },
+    {
+      "articleCategory": {
+        "name": "Jewelry"
+      },
+      "articleType": {
+        "name": "Ring"
+      },
+      "description": "Silver ring with initials"
+    }
+  ],
+  "circumstances": {
+    "status": {
+      "name": "Unidentified"
+    },
+    "dateFound": "2024-10-10",
+    "circumstancesOfRecovery": "Found near hiking trail"
+  },
+  "sighting": {
+    "address": {
+      "city": "Phoenix",
+      "county": "Maricopa",
+      "state": {
+        "name": "Arizona"
+      },
+      "country": {
+        "name": "United States"
+      },
+      "postalCode": "85004"
+    }
+  },
+  "investigatingAgencies": [
+    {
+      "name": "Maricopa County Office of the Medical Examiner"
+    },
+    {
+      "name": "Phoenix Police Department"
+    }
+  ],
+  "images": [
+    {
+      "id": 1,
+      "caption": "facial reconstruction"
+    }
+  ],
+  "documents": [
+    {
+      "id": 20,
+      "name": "Case report"
+    }
+  ],
+  "vehicles": []
+}
+

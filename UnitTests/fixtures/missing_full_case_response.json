@@ -1,0 +1,213 @@
+{
+  "id": 163404,
+  "idFormatted": "MP163404",
+  "publicationStatus": {
+    "id": 1,
+    "name": "Published",
+    "localizedName": "Published"
+  },
+  "createdDateTime": "2026-10-04T17:23:16.66",
+  "modifiedDateTime": "2026-10-07T20:07:39.143",
+  "subjectIdentification": {
+    "id": 270392,
+    "firstName": "IRIE",
+    "middleName": "SAWYER",
+    "lastName": "HEINES",
+    "currentMinAge": 16,
+    "currentMaxAge": 16,
+    "computedMissingMinAge": 16,
+    "computedMissingMaxAge": 16
+  },
+  "subjectDescription": {
+    "id": 239609,
+    "heightFrom": 69,
+    "weightFrom": 120,
+    "ethnicities": [
+      {
+        "id": 1,
+        "name": "White / Caucasian",
+        "localizedName": "White / Caucasian"
+      }
+    ],
+    "primaryEthnicity": {
+      "id": 0,
+      "name": "White / Caucasian",
+      "localizedName": "White / Caucasian"
+    },
+    "sex": {
+      "id": 2,
+      "name": "Female",
+      "localizedName": "Female"
+    },
+    "tribeAssociations": []
+  },
+  "caseIdentification": {
+    "id": 119481
+  },
+  "grantPermissionToPublish": true,
+  "caseIsResolved": false,
+  "hasPendingByNcmec": false,
+  "hasNcmecContributors": false,
+  "circumstances": {
+    "id": 285405,
+    "circumstancesOfDisappearance": "HAIR IS BLACK, BLONDE, AND PINK // UNKNOWN CLOTHING DESCRIPTION // HAS TATTOOS ON SHOULDER, ELBOW, BUTT, THIGH, AND WRIST"
+  },
+  "notes": [],
+  "clothingAndAccessoriesArticles": [
+    {
+      "id": 140722,
+      "identityId": 127153,
+      "article": {
+        "id": 2,
+        "name": "Clothing",
+        "localizedName": "Clothing",
+        "ordinal": 2
+      },
+      "description": "UNKNOWN CLOTHING DESCRIPTION"
+    }
+  ],
+  "sighting": {
+    "id": 336792,
+    "date": "2026-10-03",
+    "address": {
+      "city": "Yulee",
+      "state": {
+        "id": 52,
+        "name": "Florida",
+        "displayName": "FL"
+      },
+      "stateId": 0,
+      "county": {
+        "id": 425,
+        "name": "Nassau County",
+        "displayName": "Nassau"
+      },
+      "countyId": 0,
+      "zipCode": "32097"
+    },
+    "missingFromTribalLand": {
+      "id": 2,
+      "name": "No",
+      "localizedName": "No"
+    },
+    "primaryResidenceOnTribalLand": {
+      "id": 2,
+      "name": "No",
+      "localizedName": "No"
+    },
+    "publicGeolocation": {
+      "coordinates": {
+        "lat": 30.6319034,
+        "lon": -81.6064866
+      },
+      "formattedAddress": "Yulee, FL, USA"
+    }
+  },
+  "vehicles": [],
+  "investigatingAgencies": [
+    {
+      "id": 202259,
+      "isCaseOwner": false,
+      "name": "Nassau County Sheriff's Office",
+      "city": "Yulee",
+      "state": {
+        "id": 52,
+        "name": "Florida",
+        "localizedName": "FL"
+      },
+      "stateDisplayName": "FL",
+      "county": {
+        "id": 425,
+        "name": "Nassau County",
+        "localizedName": "Nassau"
+      },
+      "countyDisplayName": "Nassau",
+      "selection": {
+        "id": 235826,
+        "agency": {
+          "id": 43146,
+          "name": "Nassau County Sheriff's Office",
+          "street1": "77151 Citizens Circle",
+          "city": "Yulee",
+          "county": {
+            "id": 425,
+            "name": "Nassau County",
+            "localizedName": "Nassau"
+          },
+          "zipCode": "32097",
+          "state": {
+            "id": 52,
+            "name": "Florida",
+            "localizedName": "FL"
+          },
+          "phone": "9045484085",
+          "jurisdiction": {
+            "id": 3,
+            "name": "County",
+            "localizedName": "County"
+          },
+          "agencyType": {
+            "id": 1,
+            "name": "Law Enforcement",
+            "localizedName": "Law Enforcement"
+          },
+          "approved": true
+        }
+      },
+      "caseNumber": "202600088963",
+      "dateReported": "2026-10-04"
+    }
+  ],
+  "primaryInvestigatingAgency": {
+    "id": 43146,
+    "isCaseOwner": false,
+    "name": "Nassau County Sheriff's Office"
+  },
+  "caseContributors": [],
+  "caseOwner": {
+    "id": 134107,
+    "investigatingAgencyIdentityId": 202259
+  },
+  "physicalDescription": {
+    "id": 234213,
+    "hairColor": {
+      "id": 15,
+      "name": "Other",
+      "localizedName": "Other"
+    },
+    "headHairDescription": "HAIR IS BLACK, BLONDE, AND PINK",
+    "leftEyeColor": {
+      "id": 2,
+      "name": "Blue",
+      "localizedName": "Blue"
+    },
+    "rightEyeColor": {
+      "id": 2,
+      "name": "Blue",
+      "localizedName": "Blue"
+    }
+  },
+  "physicalFeatureDescriptions": [
+    {
+      "id": 113891,
+      "identityId": 102250,
+      "physicalFeature": {
+        "id": 7,
+        "name": "Tattoo",
+        "localizedName": "Tattoo",
+        "ordinal": 7
+      },
+      "description": "HAS TATTOOS ON SHOULDER, ELBOW, BUTT, THIGH, AND WRIST"
+    }
+  ],
+  "images": [],
+  "documents": [],
+  "permissionToPublish": false,
+  "viewPermission": "public",
+  "hrefDefaultImageThumbnail": "/api/CaseSets/NamUs/MissingPersons/Cases/163404/Images/Default/Thumbnail",
+  "hrefDefaultImagePoster": "/api/CaseSets/NamUs/MissingPersons/Cases/163404/Images/Default/Poster",
+  "hrefQRCode": "/api/CaseSets/NamUs/MissingPersons/Cases/163404/Images/QRCode",
+  "hrefGetRsaInformation": "/api/CaseSets/NamUs/Users/Rsa/Florida",
+  "Case Link": "https://www.namus.gov/MissingPersons/Case#/163404?nav",
+  "Case Set": "Missing Persons"
+}

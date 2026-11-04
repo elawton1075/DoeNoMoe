@@ -1,0 +1,379 @@
+{
+  "id": 163353,
+  "idFormatted": "UP163353",
+  "publicationStatus": {
+    "id": 1,
+    "name": "Published",
+    "localizedName": "Published"
+  },
+  "createdDateTime": "2026-10-02T14:24:42.183",
+  "modifiedDateTime": "2026-10-06T17:47:04.523",
+  "caseIdentification": {
+    "id": 53499,
+    "caseNumber": "86-0099"
+  },
+  "caseIsResolved": false,
+  "subjectDescription": {
+    "id": 74519,
+    "sex": {
+      "id": 1,
+      "name": "Male",
+      "localizedName": "Male"
+    },
+    "ethnicities": [
+      {
+        "id": 2,
+        "name": "Black / African American",
+        "localizedName": "Black / African American"
+      }
+    ],
+    "primaryEthnicity": {
+      "id": 0,
+      "name": "Black / African American",
+      "localizedName": "Black / African American"
+    },
+    "estimatedAgeGroup": {
+      "id": 10,
+      "name": "Adult - Pre 40",
+      "localizedName": "Adult - Pre 40"
+    },
+    "heightFrom": 70,
+    "heightTo": 71,
+    "heightCertainty": {
+      "id": 2,
+      "name": "Estimated",
+      "localizedName": "Estimated"
+    },
+    "weightFrom": 170,
+    "weightTo": 180,
+    "weightCertainty": {
+      "id": 2,
+      "name": "Estimated",
+      "localizedName": "Estimated"
+    }
+  },
+  "circumstances": {
+    "id": 80378,
+    "status": {
+      "id": 1,
+      "name": "Unidentified Deceased",
+      "localizedName": "Unidentified Deceased"
+    },
+    "dateFound": "1986-03-04",
+    "address": {
+      "city": "Columbia",
+      "state": {
+        "id": 5,
+        "name": "South Carolina",
+        "displayName": "SC"
+      },
+      "stateId": 0,
+      "county": {
+        "id": 2422,
+        "name": "Richland County",
+        "displayName": "Richland"
+      },
+      "countyId": 0,
+      "zipCode": "29201"
+    },
+    "description": "Congaree River",
+    "foundOnTribalLand": {
+      "id": 2,
+      "name": "No",
+      "localizedName": "No"
+    },
+    "circumstancesOfRecovery": "From Deputy Coroner's narrative (03/04/1986): Decedent is a black male medium build (5'10\") black hair. \n\nTwo men were fishing and found the decedent's body hung on rocks approximately 1.5 miles upriver toward Columbia or Blossom Street Bridge. Afraid that the decedent's body would be swept away by rushing water, the decedent was pulled 1.5 miles in water to Rosewood boat ramps. \n\nHe was clothed in a reddish-brown pullover shirt short sleeve, blue work pants, black socks w/white ring around tops. No shoes, no ID or wallet, no personal articles. Black belt.",
+    "publicGeolocation": {
+      "coordinates": {
+        "lat": 33.9873389,
+        "lon": -81.0368211
+      },
+      "formattedAddress": "Columbia, SC 29201, USA"
+    }
+  },
+  "detailsOfRecovery": {
+    "id": 56318,
+    "allPartsRecovered": true,
+    "conditionOfRemains": {
+      "id": 3,
+      "name": "Not recognizable - Decomposing/putrefaction",
+      "localizedName": "Not recognizable - Decomposing/putrefaction"
+    }
+  },
+  "notes": [],
+  "permissionToPublish": false,
+  "grantPermissionToPublish": true,
+  "clothingAndAccessoriesArticles": [
+    {
+      "id": 59531,
+      "identityId": 49964,
+      "article": {
+        "id": 1,
+        "name": "Accessories",
+        "localizedName": "Accessories",
+        "ordinal": 1
+      },
+      "description": "No shoes, no ID or wallet, no personal articles.",
+      "location": {
+        "id": 1,
+        "name": "On the Body",
+        "localizedName": "On the Body"
+      }
+    },
+    {
+      "id": 59530,
+      "identityId": 49963,
+      "article": {
+        "id": 2,
+        "name": "Clothing",
+        "localizedName": "Clothing",
+        "ordinal": 2
+      },
+      "description": "Reddish-brown pullover short sleeved shirt \nBlue work pants\nBlack socks w/white ring around tops. \nBlack belt.",
+      "location": {
+        "id": 1,
+        "name": "On the Body",
+        "localizedName": "On the Body"
+      }
+    }
+  ],
+  "physicalDescription": {
+    "id": 48467,
+    "hairColor": {
+      "id": 2,
+      "name": "Black",
+      "localizedName": "Black"
+    },
+    "leftEyeColor": {
+      "id": 3,
+      "name": "Brown",
+      "localizedName": "Brown"
+    },
+    "rightEyeColor": {
+      "id": 3,
+      "name": "Brown",
+      "localizedName": "Brown"
+    }
+  },
+  "physicalFeatureDescriptions": [],
+  "images": [
+    {
+      "id": 138079,
+      "identityId": 124769,
+      "category": {
+        "canBeDefault": true,
+        "canBePublic": true,
+        "id": 1,
+        "name": "FacialCaseId",
+        "localizedName": "Facial/case ID",
+        "ordinal": 10
+      },
+      "caption": "facial photo",
+      "isPublic": true,
+      "createdDateTime": "2026-10-05T16:27:01.077",
+      "files": {
+        "original": {
+          "mimeType": "image/x-png",
+          "height": 432,
+          "width": 369,
+          "storageKey": "3bb120d6d30148baafbece40f0e50270",
+          "href": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124769/Original"
+        },
+        "thumbnail": {
+          "mimeType": "image/jpg",
+          "height": 120,
+          "width": 103,
+          "storageKey": "0c2d88f6357d42c5bc45b14d03296512",
+          "href": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124769/Thumbnail"
+        }
+      },
+      "hrefDownload": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124769/Download"
+    },
+    {
+      "id": 138065,
+      "identityId": 124755,
+      "category": {
+        "canBeDefault": true,
+        "canBePublic": true,
+        "id": 23,
+        "name": "ArtistRendering",
+        "localizedName": "Artist rendering",
+        "ordinal": 230
+      },
+      "caption": "2D facial reconstruction sketch",
+      "isPublic": true,
+      "createdDateTime": "2026-10-02T17:10:42.51",
+      "files": {
+        "original": {
+          "mimeType": "image/x-png",
+          "height": 333,
+          "width": 236,
+          "storageKey": "82cee5da8fe1466abecb1ad10c330499",
+          "href": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124755/Original"
+        },
+        "thumbnail": {
+          "mimeType": "image/jpg",
+          "height": 120,
+          "width": 85,
+          "storageKey": "9965d21ed37e4bc684689148ad0a0e9d",
+          "href": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124755/Thumbnail"
+        }
+      },
+      "hrefDownload": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124755/Download"
+    },
+    {
+      "id": 138066,
+      "identityId": 124756,
+      "category": {
+        "canBeDefault": true,
+        "canBePublic": true,
+        "id": 23,
+        "name": "ArtistRendering",
+        "localizedName": "Artist rendering",
+        "ordinal": 230
+      },
+      "caption": "unidentified flyer",
+      "isPublic": true,
+      "createdDateTime": "2026-10-02T17:11:21.45",
+      "files": {
+        "original": {
+          "mimeType": "image/x-png",
+          "height": 875,
+          "width": 719,
+          "storageKey": "855050d5ce8e4991b5a247128208fa59",
+          "href": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124756/Original"
+        },
+        "thumbnail": {
+          "mimeType": "image/jpg",
+          "height": 120,
+          "width": 99,
+          "storageKey": "45f727fb54ee47009e4c7a92c22d1af7",
+          "href": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124756/Thumbnail"
+        }
+      },
+      "hrefDownload": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/124756/Download"
+    }
+  ],
+  "defaultImage": {
+    "id": 26957,
+    "defaultImageIdentityId": 124755
+  },
+  "documents": [],
+  "investigatingAgencies": [
+    {
+      "id": 53439,
+      "isCaseOwner": false,
+      "name": "Richland County Coroner's Office",
+      "city": "Columbia",
+      "state": {
+        "id": 5,
+        "name": "South Carolina",
+        "localizedName": "SC"
+      },
+      "stateDisplayName": "SC",
+      "county": {
+        "id": 2422,
+        "name": "Richland County",
+        "localizedName": "Richland"
+      },
+      "countyDisplayName": "Richland",
+      "selection": {
+        "id": 65027,
+        "agency": {
+          "id": 43363,
+          "name": "Richland County Coroner's Office",
+          "street1": "6300 Shakespeare Road",
+          "city": "Columbia",
+          "county": {
+            "id": 2422,
+            "name": "Richland County",
+            "localizedName": "Richland"
+          },
+          "zipCode": "29223",
+          "state": {
+            "id": 5,
+            "name": "South Carolina",
+            "localizedName": "SC"
+          },
+          "phone": "8035761799",
+          "jurisdiction": {
+            "id": 3,
+            "name": "County",
+            "localizedName": "County"
+          },
+          "agencyType": {
+            "id": 3,
+            "name": "Coroner",
+            "localizedName": "Coroner"
+          },
+          "approved": true,
+          "websiteUrl": "https://rccosc.com/"
+        }
+      },
+      "caseNumber": "86-0099",
+      "dateReported": "1986-03-04"
+    },
+    {
+      "id": 53449,
+      "isCaseOwner": false,
+      "name": "South Carolina Law Enforcement Division",
+      "city": "Columbia",
+      "state": {
+        "id": 5,
+        "name": "South Carolina",
+        "localizedName": "SC"
+      },
+      "stateDisplayName": "SC",
+      "county": {
+        "id": 2422,
+        "name": "Richland County",
+        "localizedName": "Richland"
+      },
+      "countyDisplayName": "Richland",
+      "selection": {
+        "id": 65028,
+        "agency": {
+          "id": 43618,
+          "name": "South Carolina Law Enforcement Division",
+          "street1": "4400 Broad River Road",
+          "city": "Columbia",
+          "county": {
+            "id": 2422,
+            "name": "Richland County",
+            "localizedName": "Richland"
+          },
+          "zipCode": "29210",
+          "state": {
+            "id": 5,
+            "name": "South Carolina",
+            "localizedName": "SC"
+          },
+          "jurisdiction": {
+            "id": 2,
+            "name": "State",
+            "localizedName": "State"
+          },
+          "agencyType": {
+            "id": 1,
+            "name": "Law Enforcement",
+            "localizedName": "Law Enforcement"
+          },
+          "approved": true,
+          "websiteUrl": "https://www.sled.sc.gov/"
+        }
+      },
+      "caseNumber": "MC-88-0276"
+    }
+  ],
+  "caseContributors": [],
+  "caseOwner": {
+    "id": 26562,
+    "investigatingAgencyIdentityId": 53439
+  },
+  "viewPermission": "public",
+  "hrefDefaultImageThumbnail": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/Default/Thumbnail",
+  "hrefDefaultImagePoster": "/api/CaseSets/NamUs/UnidentifiedPersons/Cases/163353/Images/Default/Poster",
+  "hrefGetRsaInformation": "/api/CaseSets/NamUs/Users/Rsa/South%20Carolina",
+  "Case Link": "https://www.namus.gov/UnidentifiedPersons/Case#/163353?nav",
+  "Case Set": "Unidentified Persons"
+}
