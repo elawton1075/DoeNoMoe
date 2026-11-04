@@ -23,13 +23,19 @@ There are far too many missing persons and unidentified persons; today cold case
 | `MissingPerson.py`                       | CLI + library for the NamUs **Missing Persons** case set |
 | `UnidentifiedPerson.py`                  | CLI + library for the NamUs **Unidentified Persons** case set |
 | `UnclaimedPerson.py`                     | CLI + library for the NamUs **Unclaimed Persons** case set |
-| `CaseOrchestrator.py`                    | Higher-level CLI that queries all three case sets and merges results |
+| `CaseOrchestrator.py`                    | Higher-level CLI that merges Missing + Unidentified full export results |
 | `CaseCounts.py`                          | Count-only CLI for Missing, Unidentified, and Unclaimed case sets |
+| `UnidentifiedFullExport.py`              | Full-payload export for unidentified cases with case link and photo marker |
+| `MissingFullExport.py`                   | Full-payload export for missing-person cases with case link |
+| `CaseParser.py`                          | Reusable parser object for Missing + Unidentified full case payloads |
 | `UnitTests/test_missing_person.py`       | Unit tests for `MissingPerson.py` (mocked + optional live) |
 | `UnitTests/test_unidentified_person.py`  | Unit tests for `UnidentifiedPerson.py` (mocked + optional live) |
 | `UnitTests/test_unclaimed_person.py`     | Unit tests for `UnclaimedPerson.py` (mocked + optional live) |
 | `UnitTests/test_case_orchestrator.py`    | Unit tests for `CaseOrchestrator.py` |
 | `UnitTests/test_case_counts.py`          | Unit tests for `CaseCounts.py` |
+| `UnitTests/test_unidentified_full_export.py` | Unit tests for `UnidentifiedFullExport.py` |
+| `UnitTests/test_missing_full_export.py`  | Unit tests for `MissingFullExport.py` |
+| `UnitTests/test_case_parser.py`          | Unit tests for `CaseParser.py` |
 | `requirements.txt`                       | Runtime dependencies |
 
 ## Requirements
@@ -158,23 +164,53 @@ ucp_cases = ucp.fetch_cases(ucp.build_search_params(
 All three `fetch_cases` calls accept an optional `session=requests.Session()`
 and a `detail_fetcher=` hook (useful for tests and for injecting a cache).
 
-### Combined query across all three case sets
+### Combined query across Missing and Unidentified full exports
 
 ```bash
-# Pull all three case sets together and print a text report
+# Pull Missing + Unidentified together and print a text report
 .venv/bin/python CaseOrchestrator.py --take 10 --state CA
 
-# JSON output with shared filters + case-set specific flags
+# JSON output with shared filters + Unidentified status filter
 .venv/bin/python CaseOrchestrator.py \
     --take 50 --state TX --sex Male --age-min 20 --age-max 45 \
-    --status "Unidentified Deceased" --only-unresolved --json
+    --status "Unidentified Deceased" --fetch-all --json
 ```
+
+`CaseOrchestrator.py` intentionally skips Unclaimed Persons for now.
 
 The combined JSON payload includes:
 
 - `counts`: number of rows returned per case set
 - `total`: merged row count
-- `cases`: normalized case rows from all sets, each tagged with `Case Set`
+- `cases`: full detail records from the export flows, each tagged with `Case Set`
+
+Each case in `cases` also includes a `Breakdown` object with:
+
+- `Identifiers`: ID values, case numbers, status, resolved flag, case link
+- `Demographics`: name parts, date and year of birth, sex, gender, ethnicity, race
+- `Age`: unified min and max values, plus estimated and missing specific min and max fields
+- `Physical Description`: height and weight ranges, eye and hair attributes, distinctive features
+- `Clothing and Accessories`: item count and parsed item list with category, type, color, size, brand, description
+- `Physical Features`: item count and parsed item list with type, location, value, description
+- `Eye Color`: parsed scalar field from nested physical description data
+- `Hair Color`: parsed scalar field from nested physical description data
+- `Physical Features Summary`: comma-separated summary of parsed physical feature types or descriptions
+- `Circumstances`: location fields, date fields, and disappearance and recovery narratives
+- `Investigating Agencies`: agency name list
+- `Investigating Agencies Summary`: comma-separated agency names
+- `Media`: photo presence flag, image count, document count
+- `Vehicles Count`: number of vehicle records attached to the case
+- `Top Level Keys`: sorted list of available top level keys in the raw case payload
+
+For easier downstream matching, each case row also repeats these flattened fields at top level:
+
+- `Eye Color`
+- `Hair Color`
+- `Physical Features Summary`
+- `Investigating Agency Summary`
+
+To avoid duplication, raw nested source blobs that are parsed into these fields
+are removed from each case row in orchestrator output.
 
 ### Count entries across all three case sets
 
@@ -198,6 +234,39 @@ Current count snapshot as of November 3, 2026:
 - Missing Persons: 26607
 - Unidentified Persons: 15521
 - Unclaimed Persons: 23662
+
+### Export full unidentified case records with case link and photo marker
+
+```bash
+# First page of unidentified cases, write full payloads to JSON
+.venv/bin/python UnidentifiedFullExport.py --take 100 --output unidentified_full_cases.json
+
+# Fetch all pages and include filters
+.venv/bin/python UnidentifiedFullExport.py \
+    --fetch-all --state TX --status "Unidentified Deceased" \
+    --output unidentified_full_cases.json
+```
+
+Each exported case keeps the full NamUs detail payload and adds:
+
+- `Case Link`: public URL like `https://www.namus.gov/UnidentifiedPersons/Case#/163354?nav`
+- `Has Photo`: `true` when `images`, `defaultImage`, or default-image URL fields are present
+
+### Export full missing-person case records with case link
+
+```bash
+# First page of missing-person cases, write full payloads to JSON
+.venv/bin/python MissingFullExport.py --take 100 --output missing_full_cases.json
+
+# Fetch all pages and include filters
+.venv/bin/python MissingFullExport.py \
+    --fetch-all --state CA --sex Female --age-min 18 --age-max 65 \
+    --output missing_full_cases.json
+```
+
+Each exported case keeps the full NamUs detail payload and adds:
+
+- `Case Link`: public URL like `https://www.namus.gov/MissingPersons/Case#/163404?nav`
 
 ## Running tests
 
