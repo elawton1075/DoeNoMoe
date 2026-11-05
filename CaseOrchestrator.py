@@ -24,7 +24,7 @@ import UnidentifiedFullExport as unidentified_full_export
 _case_parser = CaseParser()
 
 
-def _parse_case_set(case_set: str, payload: Dict[str, Any]) -> List[ParsedCase]:
+def parse_case_set(case_set: str, payload: Dict[str, Any]) -> List[ParsedCase]:
     """Parse every case in an export payload, leaving the input untouched."""
     return _case_parser.parse_case_objects(payload.get("cases", []), case_set)
 
@@ -39,7 +39,7 @@ def fetch_parsed_cases(args: argparse.Namespace) -> Dict[str, List[ParsedCase]]:
     with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
         futures = [(case_set, pool.submit(fetcher, args)) for case_set, fetcher in jobs]
         return {
-            case_set: _parse_case_set(case_set, future.result())
+            case_set: parse_case_set(case_set, future.result())
             for case_set, future in futures
         }
 

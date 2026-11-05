@@ -188,7 +188,7 @@ class ParseCaseSetTests(unittest.TestCase):
         }
         payload = {"cases": [row]}
 
-        parsed = orchestrator._parse_case_set("Missing Persons", payload)
+        parsed = orchestrator.parse_case_set("Missing Persons", payload)
 
         self.assertIsInstance(parsed[0], ParsedCase)
         self.assertEqual(parsed[0].breakdown.identifiers.case_set, "Missing Persons")
@@ -199,14 +199,14 @@ class ParseCaseSetTests(unittest.TestCase):
         self.assertIn("investigatingAgencies", row)
 
     def test_missing_cases_key_returns_empty_list(self):
-        self.assertEqual(orchestrator._parse_case_set("Missing Persons", {}), [])
+        self.assertEqual(orchestrator.parse_case_set("Missing Persons", {}), [])
 
 
 class FormatCaseTextTests(unittest.TestCase):
     def test_formats_live_fixture_case(self):
         fixture = Path(__file__).parent / "fixtures" / "unidentified_full_case_response_alt.json"
         raw = json.loads(fixture.read_text(encoding="utf-8"))
-        parsed = orchestrator._parse_case_set("Unidentified Persons", {"cases": [raw]})[0]
+        parsed = orchestrator.parse_case_set("Unidentified Persons", {"cases": [raw]})[0]
 
         lines = orchestrator.format_case_text(parsed).splitlines()
 
@@ -259,7 +259,7 @@ class FormatCaseTextTests(unittest.TestCase):
     def test_formats_live_missing_person_fixture(self):
         fixture = Path(__file__).parent / "fixtures" / "missing_full_case_response.json"
         raw = json.loads(fixture.read_text(encoding="utf-8"))
-        parsed = orchestrator._parse_case_set("Missing Persons", {"cases": [raw]})[0]
+        parsed = orchestrator.parse_case_set("Missing Persons", {"cases": [raw]})[0]
 
         lines = orchestrator.format_case_text(parsed).splitlines()
 
@@ -293,7 +293,7 @@ class FormatCaseTextTests(unittest.TestCase):
     def test_formats_unidentified_case_with_projected_birth_years(self):
         fixture = Path(__file__).parent / "fixtures" / "unidentified_full_case_response.json"
         raw = json.loads(fixture.read_text(encoding="utf-8"))
-        parsed = orchestrator._parse_case_set("Unidentified Persons", {"cases": [raw]})[0]
+        parsed = orchestrator.parse_case_set("Unidentified Persons", {"cases": [raw]})[0]
 
         text = orchestrator.format_case_text(parsed).splitlines()
 
@@ -313,7 +313,7 @@ class FormatCaseTextTests(unittest.TestCase):
                 "computedMissingMaxAge": 15,
             },
         }
-        parsed = orchestrator._parse_case_set("Missing Persons", {"cases": [raw]})[0]
+        parsed = orchestrator.parse_case_set("Missing Persons", {"cases": [raw]})[0]
 
         text = orchestrator.format_case_text(parsed).splitlines()
 
@@ -324,7 +324,7 @@ class FormatCaseTextTests(unittest.TestCase):
         self.assertLess(text.index("Age:"), text.index("  Date of Birth: 2010-05-17"))
 
     def test_omits_date_of_birth_when_unknown(self):
-        parsed = orchestrator._parse_case_set("Missing Persons", {"cases": [{}]})[0]
+        parsed = orchestrator.parse_case_set("Missing Persons", {"cases": [{}]})[0]
 
         text = orchestrator.format_case_text(parsed).splitlines()
 

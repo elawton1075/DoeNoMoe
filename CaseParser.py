@@ -72,7 +72,7 @@ class CaseParser:
     # Value helpers
     # ------------------------------------------------------------------
     @staticmethod
-    def _section(case: Dict[str, Any], key: str) -> Dict[str, Any]:
+    def section(case: Dict[str, Any], key: str) -> Dict[str, Any]:
         """Return a nested object, or an empty dict when missing."""
         value = case.get(key)
         return value if isinstance(value, dict) else {}
@@ -125,14 +125,14 @@ class CaseParser:
         return self._to_int(chosen)
 
     def _address(self, case: Dict[str, Any]) -> Dict[str, Any]:
-        circumstances_address = self._section(self._section(case, "circumstances"), "address")
-        return circumstances_address or self._section(self._section(case, "sighting"), "address")
+        circumstances_address = self.section(self.section(case, "circumstances"), "address")
+        return circumstances_address or self.section(self.section(case, "sighting"), "address")
 
     # ------------------------------------------------------------------
     # Section builders
     # ------------------------------------------------------------------
     def _build_identifier_block(self, case: Dict[str, Any]) -> CaseIdentifiers:
-        ident = self._section(case, "caseIdentification")
+        ident = self.section(case, "caseIdentification")
         return CaseIdentifiers(
             id=case.get("id"),
             case_number=ident.get("caseNumber") or case.get("caseNumber"),
@@ -145,8 +145,8 @@ class CaseParser:
         )
 
     def _build_demographics_block(self, case: Dict[str, Any]) -> CaseDemographics:
-        desc = self._section(case, "subjectDescription")
-        ident = self._section(case, "subjectIdentification")
+        desc = self.section(case, "subjectDescription")
+        ident = self.section(case, "subjectIdentification")
 
         def either(key: str) -> str:
             return self._first_text(desc.get(key), ident.get(key))
@@ -193,12 +193,12 @@ class CaseParser:
 
     def _last_contact_date(self, case: Dict[str, Any]) -> Any:
         """When a missing person was last seen or heard from."""
-        circumstances = self._section(case, "circumstances")
-        return circumstances.get("dateOfLastContact") or self._section(case, "sighting").get("date")
+        circumstances = self.section(case, "circumstances")
+        return circumstances.get("dateOfLastContact") or self.section(case, "sighting").get("date")
 
     def _build_age_block(self, case: Dict[str, Any], case_set: str) -> CaseAge:
         if case_set == "Missing Persons":
-            ident = self._section(case, "subjectIdentification")
+            ident = self.section(case, "subjectIdentification")
             when_missing = self._value_range(
                 self._to_int(ident.get("computedMissingMinAge")),
                 self._to_int(ident.get("computedMissingMaxAge")),
@@ -219,13 +219,13 @@ class CaseParser:
             return CaseAge(when_missing=when_missing, now=now, projected_birth_years=projected)
 
         # Unidentified: age is an estimate at the time found, so project birth years.
-        desc = self._section(case, "subjectDescription")
+        desc = self.section(case, "subjectDescription")
         estimated = self._value_range(
             self._to_int(desc.get("estimatedAgeFrom")),
             self._to_int(desc.get("estimatedAgeTo")),
         )
         projected = self._project_birth_years(
-            estimated, self._section(case, "circumstances").get("dateFound")
+            estimated, self.section(case, "circumstances").get("dateFound")
         )
         return CaseAge(
             when_missing=ValueRange(),
@@ -235,9 +235,9 @@ class CaseParser:
         )
 
     def _build_physical_description_block(self, case: Dict[str, Any]) -> CasePhysicalDescription:
-        pd = self._section(case, "physicalDescription")
+        pd = self.section(case, "physicalDescription")
         # Unidentified payloads keep height and weight under subjectDescription.
-        sd = self._section(case, "subjectDescription")
+        sd = self.section(case, "subjectDescription")
         return CasePhysicalDescription(
             height_min_inches=self._first_int(pd.get("heightFrom"), pd.get("heightMin"), sd.get("heightFrom")),
             height_max_inches=self._first_int(pd.get("heightTo"), pd.get("heightMax"), sd.get("heightTo")),
@@ -279,7 +279,7 @@ class CaseParser:
         )
 
     def _build_circumstances_block(self, case: Dict[str, Any]) -> CaseCircumstances:
-        circumstances = self._section(case, "circumstances")
+        circumstances = self.section(case, "circumstances")
         address = self._address(case)
         return CaseCircumstances(
             status=self._pick(circumstances, "status"),
@@ -331,7 +331,7 @@ class CaseParser:
             agency=self._build_agency_details(selection.get("agency")),
         )
 
-    def _build_agencies_block(self, case: Dict[str, Any]) -> List[InvestigatingAgency]:
+    def build_agencies(self, case: Dict[str, Any]) -> List[InvestigatingAgency]:
         return [
             InvestigatingAgency(
                 id=agency.get("id"),
@@ -347,15 +347,15 @@ class CaseParser:
             for agency in self._dict_items(case, "investigatingAgencies")
         ]
 
-    def _build_media_block(self, case: Dict[str, Any]) -> CaseMedia:
-        has_photo = any(
-            case.get(key)
-            for key in ("images", "defaultImage", "hrefDefaultImageThumbnail", "hrefDefaultImagePoster")
-        )
+    def build_media(self, case: Dict[str, Any]) -> CaseMedia:
+        image_count=self._count(case, "images")
+        document_count=self._count(case, "documents"),
+
         return CaseMedia(
-            has_photo=has_photo,
-            image_count=self._count(case, "images"),
-            document_count=self._count(case, "documents"),
+            has_photo=image_count>0,
+            image_count=image_count,
+            has_document=document_count>0,
+            document_count=document_count,
         )
 
     def _build_breakdown(self, case: Dict[str, Any], case_set: str) -> CaseBreakdown:
@@ -367,8 +367,8 @@ class CaseParser:
             clothing_and_accessories=self._build_clothing_block(case),
             physical_features=self._build_physical_features_block(case),
             circumstances=self._build_circumstances_block(case),
-            investigating_agencies=self._build_agencies_block(case),
-            media=self._build_media_block(case),
+            investigating_agencies=self.build_agencies(case),
+            media=self.build_media(case),
             vehicles_count=self._count(case, "vehicles"),
             top_level_keys=sorted(case.keys()),
         )
