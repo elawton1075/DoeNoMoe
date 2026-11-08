@@ -70,11 +70,11 @@ _NAMED_VALUE_KEYS = {"ID", "Name", "Localized Name", "Display Name"}
 _AGENCY_REPORT_FIELDS = ("Name", "City", "State")
 
 
-def _is_empty(value: Any) -> bool:
+def is_empty(value: Any) -> bool:
     return value is None or value == "" or value == [] or value == {}
 
 
-def _simplify(value: Any) -> Any:
+def simplify(value: Any) -> Any:
     """Collapse ranges and lookup values to one line and drop anything empty."""
     if isinstance(value, ValueRange):
         return value.range_text if value.is_known else None
@@ -86,36 +86,36 @@ def _simplify(value: Any) -> Any:
     if isinstance(value, dict):
         if set(value) == _NAMED_VALUE_KEYS:
             return value["Display Name"] or value["Localized Name"] or value["Name"] or None
-        simplified = {key: _simplify(item) for key, item in value.items()}
-        return {key: item for key, item in simplified.items() if not _is_empty(item)}
+        simplified = {key: simplify(item) for key, item in value.items()}
+        return {key: item for key, item in simplified.items() if not is_empty(item)}
     if isinstance(value, list):
-        simplified_items = [_simplify(item) for item in value]
-        return [item for item in simplified_items if not _is_empty(item)]
+        simplified_items = [simplify(item) for item in value]
+        return [item for item in simplified_items if not is_empty(item)]
     return value
 
 
-def _render_mapping(mapping: Dict[str, Any], indent: int) -> List[str]:
+def render_mapping(mapping: Dict[str, Any], indent: int) -> List[str]:
     pad = "  " * indent
     lines: List[str] = []
     for label, item in mapping.items():
         if isinstance(item, dict):
             lines.append(f"{pad}{label}:")
-            lines.extend(_render_mapping(item, indent + 1))
+            lines.extend(render_mapping(item, indent + 1))
         elif isinstance(item, list):
             lines.append(f"{pad}{label}:")
-            lines.extend(_render_list(item, indent + 1))
+            lines.extend(render_list(item, indent + 1))
         else:
             lines.append(f"{pad}{label}: {item}")
     return lines
 
 
-def _render_list(items: List[Any], indent: int) -> List[str]:
+def render_list(items: List[Any], indent: int) -> List[str]:
     pad = "  " * indent
     lines: List[str] = []
     for number, item in enumerate(items, start=1):
         if isinstance(item, dict):
             lines.append(f"{pad}{number}.")
-            lines.extend(_render_mapping(item, indent + 1))
+            lines.extend(render_mapping(item, indent + 1))
         else:
             lines.append(f"{pad}{number}. {item}")
     return lines
@@ -159,19 +159,19 @@ def format_case_text(parsed: ParsedCase) -> str:
     title = b.demographics.name or b.identifiers.case_number or "Unknown"
     lines = [f"{b.identifiers.case_set}: {title}"]
     for heading, content in sections.items():
-        content = _simplify(content)
-        if _is_empty(content):
+        content = simplify(content)
+        if is_empty(content):
             lines.append(f"{heading}: None")
             continue
         lines.append(f"{heading}:")
         if isinstance(content, list):
-            lines.extend(_render_list(content, 1))
+            lines.extend(render_list(content, 1))
         else:
-            lines.extend(_render_mapping(content, 1))
+            lines.extend(render_mapping(content, 1))
     return "\n".join(lines)
 
 
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Query Missing and Unidentified NamUs case sets using full-export flows."
     )
@@ -190,7 +190,7 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = _parse_args(argv)
+    args = parse_args(argv)
     parsed_by_set = fetch_parsed_cases(args)
 
     print(f"Total returned: {sum(len(rows) for rows in parsed_by_set.values())}", file=sys.stderr)

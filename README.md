@@ -1,4 +1,4 @@
-# DoeNoMore
+ # DoeNoMore
 
 Automated matching pipeline for [NamUs](https://www.namus.gov/) — the U.S. National Missing and Unidentified Persons System.
 
@@ -27,23 +27,15 @@ There are far too many missing persons and unidentified persons; today cold case
 | `CaseCounts.py`                          | Count-only CLI for Missing, Unidentified, and Unclaimed case sets |
 | `UnidentifiedFullExport.py`              | Full-payload export for unidentified cases with case link and photo marker |
 | `MissingFullExport.py`                   | Full-payload export for missing-person cases with case link |
-| `CaseParser.py`                          | Reusable parser that builds a typed custom object and serialized output |
+| `CaseParser.py`                          | Reusable parser that builds a typed custom object and serialized output, plus the shared `has_case_photo` rule |
 | `CaseModels/`                            | Typed custom objects for parsed case details, one file per class (`ParsedCase`, `CaseBreakdown`, `CaseIdentifiers`, `CaseDemographics`, `CaseAge`, `CasePhysicalDescription`, `ClothingItem`, `ClothingAndAccessories`, `PhysicalFeatureItem`, `PhysicalFeatures`, `CaseCircumstances`, `CaseMedia`, `InvestigatingAgency`, `AgencySelection`, `AgencyDetails`, `NamedValue`, `ValueRange`) |
-| `UnitTests/test_missing_person.py`       | Unit tests for `MissingPerson.py` (mocked + optional live) |
-| `UnitTests/test_unidentified_person.py`  | Unit tests for `UnidentifiedPerson.py` (mocked + optional live) |
-| `UnitTests/test_unclaimed_person.py`     | Unit tests for `UnclaimedPerson.py` (mocked + optional live) |
-| `UnitTests/test_case_orchestrator.py`    | Unit tests for `CaseOrchestrator.py` |
-| `UnitTests/test_case_counts.py`          | Unit tests for `CaseCounts.py` |
-| `UnitTests/test_unidentified_full_export.py` | Unit tests for `UnidentifiedFullExport.py` |
-| `UnitTests/test_missing_full_export.py`  | Unit tests for `MissingFullExport.py` |
-| `UnitTests/test_case_parser.py`          | Unit tests for `CaseParser.py` |
-| `UnitTests/test_case_models.py`          | Unit tests for the `CaseModels/` package |
-| `UnitTests/test_export_parsed_output.py` | Tests for the `--parsed` output of both full export scripts |
+| `UnitTests/test_parsing.py`              | Raw NamUs payload → typed `CaseModels` values: source fields, ages, birth-year projection, photo presence |
+| `UnitTests/test_mapping.py`              | Parsed and normalized data → output shapes: serialized `Breakdown`, text report, normalized case dicts, search payload and filter predicates |
 | `requirements.txt`                       | Runtime dependencies |
 
 ## Requirements
 
-- Python 3.10+ (developed against 3.14)
+- Python 3.10+ (developed against 3.12)
 - `requests` (see `requirements.txt`)
 
 ## Setup
@@ -63,7 +55,8 @@ If you use JetBrains IDEs, point the project interpreter at `.venv/bin/python`
 
 The current NamUs `Search` endpoints only allow a very narrow projection
 (`namus2Number`) and don't accept server-side filters for state / sex / age.
-So each script does:
+So each case-set script (`MissingPerson.py`, `UnidentifiedPerson.py`,
+`UnclaimedPerson.py`) does:
 
 1. **Search** — POST to `/api/CaseSets/NamUs/{CaseSet}/Search` to get a list of
    `namus2Number` IDs (ordered by `dateOfLastContact` descending).
@@ -72,6 +65,10 @@ So each script does:
 3. **Client-side filter** — apply `state`, `sex`, age, ethnicity, status filters
    against the rich detail records.
 4. **Normalize** — flatten each record to a stable dict schema for downstream use.
+
+The full export scripts and the orchestrator reuse step 1 and step 2 only, which is
+why their filter flags are inert — see
+[Filter behaviour in the export flows](#filter-behaviour-in-the-export-flows).
 
 ## Usage
 
@@ -171,15 +168,17 @@ and a `detail_fetcher=` hook (useful for tests and for injecting a cache).
 
 ```bash
 # Pull Missing + Unidentified together and print a text report
-.venv/bin/python CaseOrchestrator.py --take 10 --state CA
+.venv/bin/python CaseOrchestrator.py --take 10
 
-# JSON output with shared filters + Unidentified status filter
-.venv/bin/python CaseOrchestrator.py \
-    --take 50 --state TX --sex Male --age-min 20 --age-max 45 \
-    --status "Unidentified Deceased" --fetch-all --json
+# JSON output, every page of both case sets
+.venv/bin/python CaseOrchestrator.py --take 50 --fetch-all --json
 ```
 
 `CaseOrchestrator.py` intentionally skips Unclaimed Persons for now. `--take` defaults to 5 per case set.
+
+Flags: `--take`, `--skip`, `--state`, `--age-min`, `--age-max`, `--sex`, `--race-ethnicity`,
+`--status`, `--fetch-all`, `--max-workers`, `--json`. Both case sets are fetched in parallel,
+each with its own `--max-workers` detail pool.
 
 Without `--json`, each case prints a readable report of everything in its `Breakdown`.
 The first line is the case set and name (or case number). Then one section per model:
@@ -199,13 +198,13 @@ Each case in `cases` also includes a `Breakdown` object with:
 
 - `Identifiers`: ID values, case numbers, resolved flag, case link
 - `Demographics`: name parts, date and year of birth, sex, gender, ethnicity, race
-- `Age`: three `{Min, Max}` ranges. `When Missing` and `Now` are filled for Missing Persons (`computedMissing*Age` and `current*Age`). `Projected Birth Years` is filled for both case sets so they can be compared (see below)
+- `Age`: up to four `{Min, Max}` ranges. `When Missing` and `Now` are filled for Missing Persons (`computedMissing*Age` and `current*Age`). `Projected Birth Years` is filled for both case sets so they can be compared (see below). `Projected Age At Death` is filled for Unidentified Persons only (it is the estimated age range at recovery) and is omitted from JSON output when unknown
 - `Physical Description`: height and weight ranges, eye and hair attributes, distinctive features
 - `Clothing and Accessories`: item count and parsed item list with category, type, color, size, brand, description
 - `Physical Features`: item count and parsed item list with type, location, value, description
 - `Circumstances`: status, location fields, date fields, and disappearance and recovery narratives
 - `Investigating Agencies`: list of agency objects, each with id, case owner flag, name, city, state, county, case number, date reported, and a `Selection` holding the agency record (street, city, county, zip, state, phone, jurisdiction, agency type, approved flag, website). State, county, jurisdiction, and agency type are `{ID, Name, Localized Name, Display Name}` objects
-- `Media`: photo presence flag, image count, document count
+- `Media`: photo presence flag, image count, document count. `Has Photo` is set by `CaseParser.has_case_photo`, which also counts a `defaultImage` object or the `hrefDefaultImageThumbnail` / `hrefDefaultImagePoster` pointers, so `Image Count: 0` does not mean the case has no photo
 - `Vehicles Count`: number of vehicle records attached to the case
 - `Top Level Keys`: sorted list of available top level keys in the raw case payload
 
@@ -246,15 +245,28 @@ are removed from each case row in orchestrator output.
 typed `ParsedCase` object from the `CaseModels/` package before serialization, this object
 contains all parsed details in custom section objects.
 
+#### Filter behaviour in the export flows
+
+`CaseOrchestrator.py`, `MissingFullExport.py` and `UnidentifiedFullExport.py` accept the filter
+flags, but in these three scripts the filters have no effect. The flags are folded into the
+search params, and `server_payload` forwards only `take`, `skip`, `projections`, `predicates`
+and `orderBy` to the Search endpoint. Unlike `fetch_cases`, the export flows never call
+`matches_filters`, so nothing re-applies them client side either. Verified against the live API:
+`MissingFullExport.py --take 5 --state CA --sex Female` returns Male cases.
+
+Client-side filtering lives only in `fetch_cases`, so `--state`, `--sex`, `--age-min`,
+`--age-max`, `--race-ethnicity`, `--status`, `--yob-min`, `--yob-max` and `--only-unresolved`
+work when running `MissingPerson.py`, `UnidentifiedPerson.py` and `UnclaimedPerson.py`, and do
+not work in the export or orchestrator flows.
+
 ### Count entries across all three case sets
 
 ```bash
 # Count all three case sets
 .venv/bin/python CaseCounts.py
 
-# Count with filters and JSON output
-.venv/bin/python CaseCounts.py \
-    --state CA --sex Female --age-min 18 --age-max 65 --json
+# JSON output
+.venv/bin/python CaseCounts.py --json
 ```
 
 The count payload includes:
@@ -262,7 +274,17 @@ The count payload includes:
 - `counts`: top-level Search count for each case set
 - `total`: sum of those counts
 
-Current count snapshot as of November 3, 2026:
+The filter flags are accepted but do **not** change the reported numbers. `CaseCounts` never
+fetches detail records, and `server_payload` forwards only `take`, `skip`, `projections`,
+`predicates` and `orderBy` to the Search endpoint, so `--state`, `--sex`, `--age-min`,
+`--age-max`, `--race-ethnicity`, `--status`, `--yob-min`, `--yob-max` and `--only-unresolved`
+are dropped before the request. Counts are therefore nationwide totals. To count a filtered
+subset, run one of the case-set scripts with `--json` and count the returned rows.
+
+Flags: `--take`, `--skip`, `--state`, `--age-min`, `--age-max`, `--sex`, `--race-ethnicity`,
+`--status`, `--yob-min`, `--yob-max`, `--only-unresolved`, `--json`.
+
+Count snapshot as of November 7, 2026:
 
 - Total: 65790
 - Missing Persons: 26607
@@ -275,16 +297,20 @@ Current count snapshot as of November 3, 2026:
 # First page of unidentified cases, write full payloads to JSON
 .venv/bin/python UnidentifiedFullExport.py --take 100 --output unidentified_full_cases.json
 
-# Fetch all pages and include filters
-.venv/bin/python UnidentifiedFullExport.py \
-    --fetch-all --state TX --status "Unidentified Deceased" \
-    --output unidentified_full_cases.json
+# Fetch every page
+.venv/bin/python UnidentifiedFullExport.py --fetch-all --output unidentified_full_cases.json
 ```
+
+Flags: `--take`, `--skip`, `--fetch-all`, `--state`, `--age-min`, `--age-max`, `--sex`,
+`--race-ethnicity`, `--status`, `--max-workers`, `--output`, `--print-json`, `--parsed`. The
+filter flags are accepted but not applied — see
+[Filter behaviour in the export flows](#filter-behaviour-in-the-export-flows).
 
 Each exported case keeps the full NamUs detail payload and adds:
 
 - `Case Link`: public URL like `https://www.namus.gov/UnidentifiedPersons/Case#/163354?nav`
 - `Has Photo`: `true` when `images`, `defaultImage`, or default-image URL fields are present
+  (the same `CaseParser.has_case_photo` rule that fills the parsed `Media` section)
 
 Add `--parsed` to write parsed cases instead of raw payloads. Each case then has
 the `Breakdown` object and flattened fields described under the orchestrator, and
@@ -300,11 +326,14 @@ the raw blobs that were parsed are removed:
 # First page of missing-person cases, write full payloads to JSON
 .venv/bin/python MissingFullExport.py --take 100 --output missing_full_cases.json
 
-# Fetch all pages and include filters
-.venv/bin/python MissingFullExport.py \
-    --fetch-all --state CA --sex Female --age-min 18 --age-max 65 \
-    --output missing_full_cases.json
+# Fetch every page
+.venv/bin/python MissingFullExport.py --fetch-all --output missing_full_cases.json
 ```
+
+Flags: `--take`, `--skip`, `--fetch-all`, `--state`, `--age-min`, `--age-max`, `--sex`,
+`--race-ethnicity`, `--max-workers`, `--output`, `--print-json`, `--parsed`. The filter flags
+are accepted but not applied — see
+[Filter behaviour in the export flows](#filter-behaviour-in-the-export-flows).
 
 Each exported case keeps the full NamUs detail payload and adds:
 
@@ -319,14 +348,18 @@ unidentified export:
 
 ## Running tests
 
-Tests live under `UnitTests/` (which is a Python package — has `__init__.py`).
+Tests live under `UnitTests/` (which is a Python package — has `__init__.py`) and cover data
+parsing and mapping. Both files run fully offline against the payloads in
+`UnitTests/fixtures/` — there is no network access and no live-API mode.
+
+- `test_parsing.py` — 44 tests. Which raw NamUs field becomes which typed model value, the age
+  and projected-birth-year rules, and photo presence.
+- `test_mapping.py` — 48 tests. Serialized `Breakdown` shape and raw-blob pruning, the text
+  report, normalized case dicts, the search payload allow-list, and the client-side filters.
 
 ```bash
-# Fast, offline (mocked HTTP): 40 tests total
+# 92 tests, offline
 .venv/bin/python -m unittest discover -s UnitTests -t .
-
-# Include live NamUs API calls (slow — hits real endpoints)
-RUN_LIVE_NAMUS=1 .venv/bin/python -m unittest discover -s UnitTests -t .
 ```
 
 ## Roadmap

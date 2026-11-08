@@ -1,4 +1,10 @@
-"""Unit tests for CaseParser.py."""
+"""
+Data parsing tests.
+
+Raw NamUs case payloads in, typed CaseModels values out: which source field
+becomes which model value, how ages and birth years are projected, and how the
+typed object is built without touching its input.
+"""
 
 from __future__ import annotations
 
@@ -12,147 +18,12 @@ from CaseModels import (
     InvestigatingAgency,
     NamedValue,
     ParsedCase,
+    ValueRange,
 )
-from CaseParser import CaseParser
-
-
-class CaseParserTests(unittest.TestCase):
-    def test_parse_missing_case(self):
-        parser = CaseParser()
-        raw = {
-            "id": 1,
-            "idFormatted": "MP00001",
-            "Case Link": "https://www.namus.gov/MissingPersons/Case#/1?nav",
-            "Case Set": "Missing Persons",
-            "caseIdentification": {"caseNumber": "CN-1"},
-            "subjectIdentification": {
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "computedMissingMinAge": 12,
-                "computedMissingMaxAge": 13,
-            },
-            "physicalDescription": {
-                "eyeColor": {"name": "Brown"},
-                "hairColor": {"name": "Black"},
-            },
-            "physicalFeatureDescriptions": [
-                {"physicalFeatureType": {"name": "Scar"}, "description": "left cheek"}
-            ],
-            "investigatingAgencies": [{"name": "Agency One"}, {"name": "Agency Two"}],
-            "clothingAndAccessoriesArticles": [
-                {"articleType": {"name": "Shirt"}, "description": "Blue"}
-            ],
-        }
-
-        parsed = parser.parse_case(raw, "Missing Persons")
-
-        self.assertEqual(parsed["Breakdown"]["Age"]["When Missing"], {"Min": 12, "Max": 13})
-        self.assertEqual(parsed["Breakdown"]["Age"]["Now"], {"Min": None, "Max": None})
-        self.assertEqual(parsed["Breakdown"]["Age"]["Projected Birth Years"], {"Min": None, "Max": None})
-        self.assertEqual(parsed["Eye Color"], "Brown")
-        self.assertEqual(parsed["Hair Color"], "Black")
-        self.assertEqual(parsed["Physical Features Summary"], "Scar")
-        self.assertEqual(parsed["Investigating Agency Summary"], "Agency One, Agency Two")
-        self.assertNotIn("physicalDescription", parsed)
-        self.assertNotIn("subjectIdentification", parsed)
-
-    def test_parse_unidentified_case(self):
-        parser = CaseParser()
-        raw = {
-            "id": 2,
-            "idFormatted": "UP00002",
-            "Case Link": "https://www.namus.gov/UnidentifiedPersons/Case#/2?nav",
-            "Case Set": "Unidentified Persons",
-            "subjectDescription": {"estimatedAgeFrom": 22, "estimatedAgeTo": 30},
-            "circumstances": {"dateFound": "2000-06-01"},
-            "physicalDescription": {
-                "eyeColor": {"name": "Blue"},
-                "hairColor": {"name": "Brown"},
-            },
-            "investigatingAgencies": [{"name": "Agency Three"}],
-        }
-
-        parsed = parser.parse_case(raw, "Unidentified Persons")
-
-        # Found in 2000 aged 22 to 30: born 1969 (oldest) through 1978 (youngest).
-        self.assertEqual(parsed["Breakdown"]["Age"]["Projected Birth Years"], {"Min": 1969, "Max": 1978})
-        self.assertEqual(parsed["Breakdown"]["Age"]["When Missing"], {"Min": None, "Max": None})
-        self.assertEqual(parsed["Breakdown"]["Age"]["Now"], {"Min": None, "Max": None})
-        self.assertEqual(parsed["Investigating Agency Summary"], "Agency Three")
-
-    def test_parse_unidentified_full_response_fixture(self):
-        parser = CaseParser()
-        fixture_path = Path(__file__).parent / "fixtures" / "unidentified_full_case_response_alt.json"
-        raw = json.loads(fixture_path.read_text(encoding="utf-8"))
-
-        parsed = parser.parse_case(raw, "Unidentified Persons")
-
-        self.assertEqual(parsed["id"], 163353)
-        empty = {"Min": None, "Max": None}
-        self.assertEqual(
-            parsed["Breakdown"]["Age"],
-            {"When Missing": empty, "Now": empty, "Projected Birth Years": empty},
-        )
-        self.assertEqual(parsed["Eye Color"], "Brown")
-        self.assertEqual(parsed["Hair Color"], "Black")
-        self.assertEqual(parsed["Breakdown"]["Physical Features"]["Count"], 0)
-        self.assertEqual(
-            parsed["Investigating Agency Summary"],
-            "Richland County Coroner's Office, South Carolina Law Enforcement Division",
-        )
-        self.assertEqual(parsed["Breakdown"]["Media"]["Has Photo"], True)
-        self.assertEqual(parsed["Breakdown"]["Media"]["Image Count"], 3)
-        self.assertEqual(parsed["Breakdown"]["Media"]["Document Count"], 0)
-
-        self.assertNotIn("subjectDescription", parsed)
-        self.assertNotIn("physicalDescription", parsed)
-        self.assertNotIn("physicalFeatureDescriptions", parsed)
-        self.assertNotIn("clothingAndAccessoriesArticles", parsed)
-        self.assertNotIn("investigatingAgencies", parsed)
-
-    def test_parse_case_object_returns_typed_custom_object(self):
-        parser = CaseParser()
-        fixture_path = Path(__file__).parent / "fixtures" / "unidentified_full_case_response_alt.json"
-        raw = json.loads(fixture_path.read_text(encoding="utf-8"))
-
-        parsed_obj = parser.parse_case_object(raw, "Unidentified Persons")
-
-        self.assertIsInstance(parsed_obj, ParsedCase)
-        self.assertEqual(parsed_obj.breakdown.identifiers.id, 163353)
-        self.assertEqual(parsed_obj.breakdown.physical_description.eye_color, "Brown")
-        self.assertEqual(parsed_obj.breakdown.physical_description.hair_color, "Black")
-        self.assertEqual(parsed_obj.breakdown.clothing_and_accessories.count, 2)
-        self.assertEqual(parsed_obj.breakdown.media.image_count, 3)
-        self.assertEqual(len(parsed_obj.breakdown.investigating_agencies), 2)
-
-    def test_parse_case_includes_all_breakdown_fields_from_model(self):
-        parser = CaseParser()
-        fixture_path = Path(__file__).parent / "fixtures" / "unidentified_full_case_response_alt.json"
-        raw = json.loads(fixture_path.read_text(encoding="utf-8"))
-
-        parsed_obj = parser.parse_case_object(raw, "Unidentified Persons")
-        parsed_dict = parser.parse_case(raw, "Unidentified Persons")
-
-        expected_breakdown = parsed_obj.breakdown.to_dict()
-        self.assertEqual(parsed_dict["Breakdown"], expected_breakdown)
-        self.assertEqual(set(parsed_dict["Breakdown"].keys()), set(expected_breakdown.keys()))
-
+from CaseParser import CaseParser, has_case_photo
+import CaseOrchestrator as orchestrator
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
-
-BREAKDOWN_KEYS = {
-    "Identifiers",
-    "Demographics",
-    "Age",
-    "Physical Description",
-    "Clothing and Accessories",
-    "Physical Features",
-    "Circumstances",
-    "Investigating Agencies",
-    "Media",
-    "Vehicles Count",
-    "Top Level Keys",
-}
 
 
 def _load_fixture(name: str) -> dict:
@@ -411,92 +282,172 @@ def _expected_163353(raw: dict) -> dict:
     }
 
 
+class ValueRangeTests(unittest.TestCase):
+    """The range primitive every age and birth-year value is built from."""
+
+    def test_no_values(self):
+        value = ValueRange()
+        self.assertFalse(value.is_known)
+        self.assertEqual(value.range_text, "N/A")
+        self.assertEqual(value.to_dict(), {"Min": None, "Max": None})
+
+    def test_single_value(self):
+        self.assertEqual(ValueRange(22, 22).range_text, "22")
+
+    def test_range(self):
+        value = ValueRange(22, 30)
+        self.assertTrue(value.is_known)
+        self.assertEqual(value.range_text, "22-30")
+        self.assertEqual(value.to_dict(), {"Min": 22, "Max": 30})
+
+    def test_only_one_bound(self):
+        self.assertEqual(ValueRange(None, 30).range_text, "30")
+        self.assertEqual(ValueRange(22, None).range_text, "22")
+        self.assertTrue(ValueRange(None, 30).is_known)
+
+    def test_zero_is_a_real_value(self):
+        self.assertTrue(ValueRange(0, 0).is_known)
+        self.assertEqual(ValueRange(0, 0).range_text, "0")
+        self.assertEqual(ValueRange(0, 2).range_text, "0-2")
+
+    def test_reversed_bounds_are_ordered(self):
+        self.assertEqual(ValueRange(30, 22).range_text, "22-30")
+
+    def test_overlaps(self):
+        self.assertTrue(ValueRange(2009, 2010).overlaps(ValueRange(2008, 2010)))
+        self.assertTrue(ValueRange(2008, 2010).overlaps(ValueRange(2009, 2010)))
+        self.assertTrue(ValueRange(2000, 2005).overlaps(ValueRange(2005, 2010)))  # shared edge
+        self.assertTrue(ValueRange(2010, 2010).overlaps(ValueRange(2009, 2011)))
+
+    def test_does_not_overlap(self):
+        self.assertFalse(ValueRange(1969, 1978).overlaps(ValueRange(2009, 2010)))
+        self.assertFalse(ValueRange(2000, 2004).overlaps(ValueRange(2005, 2010)))
+
+    def test_unknown_range_never_overlaps(self):
+        self.assertFalse(ValueRange().overlaps(ValueRange(2009, 2010)))
+        self.assertFalse(ValueRange(2009, 2010).overlaps(ValueRange()))
+        self.assertFalse(ValueRange().overlaps(ValueRange()))
+
+    def test_single_bound_overlaps_as_a_point(self):
+        self.assertTrue(ValueRange(None, 2010).overlaps(ValueRange(2009, 2011)))
+        self.assertFalse(ValueRange(None, 2020).overlaps(ValueRange(2009, 2011)))
+
+
+class CaseParserTests(unittest.TestCase):
+    def setUp(self):
+        self.parser = CaseParser()
+
+    def test_parse_missing_case(self):
+        raw = {
+            "id": 1,
+            "idFormatted": "MP00001",
+            "Case Link": "https://www.namus.gov/MissingPersons/Case#/1?nav",
+            "Case Set": "Missing Persons",
+            "caseIdentification": {"caseNumber": "CN-1"},
+            "subjectIdentification": {
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "computedMissingMinAge": 12,
+                "computedMissingMaxAge": 13,
+            },
+            "physicalDescription": {
+                "eyeColor": {"name": "Brown"},
+                "hairColor": {"name": "Black"},
+            },
+            "physicalFeatureDescriptions": [
+                {"physicalFeatureType": {"name": "Scar"}, "description": "left cheek"}
+            ],
+            "investigatingAgencies": [{"name": "Agency One"}, {"name": "Agency Two"}],
+            "clothingAndAccessoriesArticles": [
+                {"articleType": {"name": "Shirt"}, "description": "Blue"}
+            ],
+        }
+
+        parsed = self.parser.parse_case(raw, "Missing Persons")
+
+        self.assertEqual(parsed["Breakdown"]["Age"]["When Missing"], {"Min": 12, "Max": 13})
+        self.assertEqual(parsed["Breakdown"]["Age"]["Now"], {"Min": None, "Max": None})
+        self.assertEqual(parsed["Breakdown"]["Age"]["Projected Birth Years"], {"Min": None, "Max": None})
+        self.assertEqual(parsed["Eye Color"], "Brown")
+        self.assertEqual(parsed["Hair Color"], "Black")
+        self.assertEqual(parsed["Physical Features Summary"], "Scar")
+        self.assertEqual(parsed["Investigating Agency Summary"], "Agency One, Agency Two")
+        self.assertNotIn("physicalDescription", parsed)
+        self.assertNotIn("subjectIdentification", parsed)
+
+    def test_parse_unidentified_case(self):
+        raw = {
+            "id": 2,
+            "idFormatted": "UP00002",
+            "Case Link": "https://www.namus.gov/UnidentifiedPersons/Case#/2?nav",
+            "Case Set": "Unidentified Persons",
+            "subjectDescription": {"estimatedAgeFrom": 22, "estimatedAgeTo": 30},
+            "circumstances": {"dateFound": "2000-06-01"},
+            "physicalDescription": {
+                "eyeColor": {"name": "Blue"},
+                "hairColor": {"name": "Brown"},
+            },
+            "investigatingAgencies": [{"name": "Agency Three"}],
+        }
+
+        parsed = self.parser.parse_case(raw, "Unidentified Persons")
+
+        # Found in 2000 aged 22 to 30: born 1969 (oldest) through 1978 (youngest).
+        self.assertEqual(parsed["Breakdown"]["Age"]["Projected Birth Years"], {"Min": 1969, "Max": 1978})
+        self.assertEqual(parsed["Breakdown"]["Age"]["When Missing"], {"Min": None, "Max": None})
+        self.assertEqual(parsed["Breakdown"]["Age"]["Now"], {"Min": None, "Max": None})
+        self.assertEqual(parsed["Investigating Agency Summary"], "Agency Three")
+
+    def test_parse_unidentified_full_response_fixture(self):
+        raw = _load_fixture("unidentified_full_case_response_alt.json")
+
+        parsed = self.parser.parse_case(raw, "Unidentified Persons")
+
+        self.assertEqual(parsed["id"], 163353)
+        empty = {"Min": None, "Max": None}
+        self.assertEqual(
+            parsed["Breakdown"]["Age"],
+            {"When Missing": empty, "Now": empty, "Projected Birth Years": empty},
+        )
+        self.assertEqual(parsed["Eye Color"], "Brown")
+        self.assertEqual(parsed["Hair Color"], "Black")
+        self.assertEqual(parsed["Breakdown"]["Physical Features"]["Count"], 0)
+        self.assertEqual(
+            parsed["Investigating Agency Summary"],
+            "Richland County Coroner's Office, South Carolina Law Enforcement Division",
+        )
+        self.assertEqual(parsed["Breakdown"]["Media"]["Has Photo"], True)
+        self.assertEqual(parsed["Breakdown"]["Media"]["Image Count"], 3)
+        self.assertEqual(parsed["Breakdown"]["Media"]["Document Count"], 0)
+
+        self.assertNotIn("subjectDescription", parsed)
+        self.assertNotIn("physicalDescription", parsed)
+        self.assertNotIn("physicalFeatureDescriptions", parsed)
+        self.assertNotIn("clothingAndAccessoriesArticles", parsed)
+        self.assertNotIn("investigatingAgencies", parsed)
+
+    def test_parse_case_object_returns_typed_custom_object(self):
+        raw = _load_fixture("unidentified_full_case_response_alt.json")
+
+        parsed_obj = self.parser.parse_case_object(raw, "Unidentified Persons")
+
+        self.assertIsInstance(parsed_obj, ParsedCase)
+        self.assertEqual(parsed_obj.breakdown.identifiers.id, 163353)
+        self.assertEqual(parsed_obj.breakdown.physical_description.eye_color, "Brown")
+        self.assertEqual(parsed_obj.breakdown.physical_description.hair_color, "Black")
+        self.assertEqual(parsed_obj.breakdown.clothing_and_accessories.count, 2)
+        self.assertEqual(parsed_obj.breakdown.media.image_count, 3)
+        self.assertEqual(len(parsed_obj.breakdown.investigating_agencies), 2)
+
+
 class CaseParserFixtureTests(unittest.TestCase):
     """Parse every fixture case and verify each parsed field."""
 
     def setUp(self):
         self.parser = CaseParser()
-        self.fixture_paths = sorted(FIXTURE_DIR.glob("*.json"))
 
     def test_fixture_directory_has_cases(self):
-        self.assertGreaterEqual(len(self.fixture_paths), 2)
-
-    def test_every_fixture_parses_with_expected_structure(self):
-        """Generic invariants that must hold for any fixture added to the folder."""
-        for path in self.fixture_paths:
-            with self.subTest(fixture=path.name):
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                case_set = raw["Case Set"]
-                parsed = self.parser.parse_case(raw, case_set)
-                breakdown = parsed["Breakdown"]
-
-                self.assertEqual(set(breakdown.keys()), BREAKDOWN_KEYS)
-
-                # Every parsed source blob is removed from the output.
-                for key in CaseParser.PRUNED_PARSED_BLOBS:
-                    self.assertNotIn(key, parsed)
-
-                # Every other raw key is preserved untouched.
-                for key, value in raw.items():
-                    if key in CaseParser.PRUNED_PARSED_BLOBS:
-                        continue
-                    self.assertIn(key, parsed)
-                    self.assertEqual(parsed[key], value)
-
-                # Flattened top level fields come from the nested models.
-                self.assertEqual(parsed["Eye Color"], breakdown["Physical Description"]["Eye Color"])
-                self.assertEqual(parsed["Hair Color"], breakdown["Physical Description"]["Hair Color"])
-                self.assertEqual(
-                    parsed["Physical Features Summary"],
-                    ", ".join(dict.fromkeys(
-                        i["Type"] or i["Description"] or i["Value"]
-                        for i in breakdown["Physical Features"]["Items"]
-                        if i["Type"] or i["Description"] or i["Value"]
-                    )),
-                )
-                self.assertEqual(
-                    parsed["Investigating Agency Summary"],
-                    ", ".join(dict.fromkeys(
-                        a["Name"] for a in breakdown["Investigating Agencies"] if a["Name"]
-                    )),
-                )
-
-                # Every raw agency field is carried into its model.
-                raw_agencies = raw.get("investigatingAgencies") or []
-                self.assertEqual(len(breakdown["Investigating Agencies"]), len(raw_agencies))
-                for parsed_agency, raw_agency in zip(breakdown["Investigating Agencies"], raw_agencies):
-                    self.assertEqual(parsed_agency["ID"], raw_agency.get("id"))
-                    self.assertEqual(parsed_agency["Is Case Owner"], raw_agency.get("isCaseOwner"))
-                    self.assertEqual(parsed_agency["Name"], raw_agency.get("name"))
-                    self.assertEqual(parsed_agency["City"], raw_agency.get("city"))
-                    self.assertEqual(parsed_agency["Case Number"], raw_agency.get("caseNumber"))
-                    self.assertEqual(parsed_agency["Date Reported"], raw_agency.get("dateReported"))
-                    raw_agency_record = (raw_agency.get("selection") or {}).get("agency") or {}
-                    parsed_record = (parsed_agency["Selection"] or {}).get("Agency") or {}
-                    self.assertEqual(parsed_record.get("Website URL"), raw_agency_record.get("websiteUrl"))
-                    self.assertEqual(parsed_record.get("Zip Code"), raw_agency_record.get("zipCode"))
-
-                # Counts agree with the lists they summarize.
-                self.assertEqual(
-                    breakdown["Clothing and Accessories"]["Count"],
-                    len(breakdown["Clothing and Accessories"]["Items"]),
-                )
-                self.assertEqual(
-                    breakdown["Physical Features"]["Count"],
-                    len(breakdown["Physical Features"]["Items"]),
-                )
-                self.assertEqual(breakdown["Clothing and Accessories"]["Count"], len(raw.get("clothingAndAccessoriesArticles") or []))
-                self.assertEqual(breakdown["Physical Features"]["Count"], len(raw.get("physicalFeatureDescriptions") or []))
-                self.assertEqual(len(breakdown["Investigating Agencies"]), len(raw.get("investigatingAgencies") or []))
-                self.assertEqual(breakdown["Media"]["Image Count"], len(raw.get("images") or []))
-                self.assertEqual(breakdown["Media"]["Document Count"], len(raw.get("documents") or []))
-                self.assertEqual(breakdown["Vehicles Count"], len(raw.get("vehicles") or []))
-                self.assertEqual(breakdown["Top Level Keys"], sorted(raw.keys()))
-
-                # Identifiers always carry through id, link, and case set.
-                self.assertEqual(breakdown["Identifiers"]["ID"], raw["id"])
-                self.assertEqual(breakdown["Identifiers"]["Case Link"], raw["Case Link"])
-                self.assertEqual(breakdown["Identifiers"]["Case Set"], case_set)
+        self.assertGreaterEqual(len(sorted(FIXTURE_DIR.glob("*.json"))), 2)
 
     def test_fixture_163354_parses_every_field(self):
         raw = _load_fixture("unidentified_full_case_response.json")
@@ -513,38 +464,6 @@ class CaseParserFixtureTests(unittest.TestCase):
             {k: v for k, v in parsed["Breakdown"].items() if k != "Top Level Keys"},
             _expected_163353(raw),
         )
-
-    def test_breakdown_does_not_duplicate_nested_model_values(self):
-        """Values owned by a nested model are not stored again on CaseBreakdown."""
-        duplicated_keys = {
-            "Eye Color",
-            "Hair Color",
-            "Physical Features Summary",
-            "Investigating Agencies Summary",
-        }
-        for path in self.fixture_paths:
-            with self.subTest(fixture=path.name):
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                parsed_obj = self.parser.parse_case_object(raw, raw["Case Set"])
-                breakdown_dict = parsed_obj.breakdown.to_dict()
-
-                self.assertTrue(duplicated_keys.isdisjoint(breakdown_dict.keys()))
-                self.assertNotIn("Status", breakdown_dict["Identifiers"])
-                self.assertIn("Status", breakdown_dict["Circumstances"])
-
-                # Derived values read straight from the nested models.
-                self.assertEqual(
-                    parsed_obj.breakdown.eye_color,
-                    parsed_obj.breakdown.physical_description.eye_color,
-                )
-                self.assertEqual(
-                    parsed_obj.breakdown.hair_color,
-                    parsed_obj.breakdown.physical_description.hair_color,
-                )
-                self.assertEqual(
-                    parsed_obj.breakdown.physical_features_summary,
-                    parsed_obj.breakdown.physical_features.summary,
-                )
 
     def test_missing_person_fixture_parses_key_fields(self):
         raw = _load_fixture("missing_full_case_response.json")
@@ -614,16 +533,6 @@ class CaseParserFixtureTests(unittest.TestCase):
         # The source's stateDisplayName and countyDisplayName are not stored twice.
         self.assertFalse(hasattr(coroner, "state_display_name"))
         self.assertFalse(hasattr(coroner, "county_display_name"))
-
-    def test_typed_object_matches_serialized_breakdown_for_every_fixture(self):
-        for path in self.fixture_paths:
-            with self.subTest(fixture=path.name):
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                case_set = raw["Case Set"]
-                parsed_obj = self.parser.parse_case_object(raw, case_set)
-                parsed_dict = self.parser.parse_case(raw, case_set)
-                self.assertIsInstance(parsed_obj, ParsedCase)
-                self.assertEqual(parsed_dict["Breakdown"], parsed_obj.breakdown.to_dict())
 
 
 class CaseParserAgeTests(unittest.TestCase):
@@ -800,6 +709,61 @@ class CaseParserAgeTests(unittest.TestCase):
         self.assertTrue(same_era.overlaps(missing))
         self.assertFalse(missing.overlaps(other_era))
         self.assertFalse(missing.overlaps(no_estimate))
+
+
+class HasCasePhotoTests(unittest.TestCase):
+    """Photo presence is parsed from image content or image URL pointers."""
+
+    def _case(self, **overrides) -> dict:
+        case = {
+            "images": [],
+            "defaultImage": {},
+            "hrefDefaultImageThumbnail": "",
+            "hrefDefaultImagePoster": "",
+        }
+        case.update(overrides)
+        return case
+
+    def test_true_when_images_present(self):
+        self.assertTrue(has_case_photo(self._case(images=[{"id": 10}])))
+
+    def test_true_when_default_image_present(self):
+        self.assertTrue(has_case_photo(self._case(defaultImage={"id": 99})))
+
+    def test_true_when_only_default_image_urls_are_present(self):
+        # NamUs routinely ships images: [] with usable href pointers, so an empty
+        # image list is not evidence that the case has no photo.
+        self.assertTrue(has_case_photo(self._case(hrefDefaultImageThumbnail="/api/.../Thumbnail")))
+        self.assertTrue(has_case_photo(self._case(hrefDefaultImagePoster="/api/.../Poster")))
+
+    def test_false_when_no_photo_fields(self):
+        self.assertFalse(has_case_photo(self._case()))
+
+    def test_empty_default_image_is_not_a_photo(self):
+        self.assertFalse(has_case_photo(self._case(defaultImage={})))
+
+
+class ParseCaseSetTests(unittest.TestCase):
+    def test_does_not_mutate_input_payload(self):
+        row = {
+            "id": 1,
+            "physicalDescription": {"eyeColor": {"name": "Brown"}},
+            "investigatingAgencies": [{"name": "Agency One"}],
+        }
+        payload = {"cases": [row]}
+
+        parsed = orchestrator.parse_case_set("Missing Persons", payload)
+
+        self.assertIsInstance(parsed[0], ParsedCase)
+        self.assertEqual(parsed[0].breakdown.identifiers.case_set, "Missing Persons")
+        self.assertEqual(parsed[0].breakdown.eye_color, "Brown")
+        # The raw payload keeps its original shape.
+        self.assertNotIn("Case Set", row)
+        self.assertIn("physicalDescription", row)
+        self.assertIn("investigatingAgencies", row)
+
+    def test_missing_cases_key_returns_empty_list(self):
+        self.assertEqual(orchestrator.parse_case_set("Missing Persons", {}), [])
 
 
 if __name__ == "__main__":

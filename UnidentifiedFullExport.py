@@ -16,12 +16,12 @@ from typing import Any, Callable, Dict, List, Optional
 import requests
 
 import UnidentifiedPerson as up
-from CaseParser import CaseParser
+from CaseParser import CaseParser, has_case_photo
 
 CASE_LINK_TEMPLATE = "https://www.namus.gov/UnidentifiedPersons/Case#/{id}?nav"
 
 
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Fetch full Unidentified Persons case details and enrich each record "
@@ -54,21 +54,6 @@ def build_case_link(case: Dict[str, Any], fallback_id: Optional[int] = None) -> 
     return CASE_LINK_TEMPLATE.format(id=cid)
 
 
-def has_case_photo(case: Dict[str, Any]) -> bool:
-    """Return True when case has image content or image URL pointers."""
-    images = case.get("images")
-    if isinstance(images, list) and len(images) > 0:
-        return True
-
-    default_image = case.get("defaultImage")
-    if isinstance(default_image, dict) and len(default_image) > 0:
-        return True
-
-    thumb = case.get("hrefDefaultImageThumbnail")
-    poster = case.get("hrefDefaultImagePoster")
-    return bool(thumb or poster)
-
-
 def enrich_case(case: Dict[str, Any], fallback_id: Optional[int] = None) -> Dict[str, Any]:
     """Keep full case payload and add link and photo marker."""
     enriched = dict(case)
@@ -77,7 +62,7 @@ def enrich_case(case: Dict[str, Any], fallback_id: Optional[int] = None) -> Dict
     return enriched
 
 
-def _fetch_detail_batch(
+def fetch_detail_batch(
     ids: List[int],
     session: requests.Session,
     max_workers: int,
@@ -130,7 +115,7 @@ def fetch_unidentified_details(
 
         # Keep original order while dropping duplicate IDs.
         deduped_ids = list(dict.fromkeys(all_ids))
-        details = _fetch_detail_batch(
+        details = fetch_detail_batch(
             deduped_ids,
             session=session,
             max_workers=args.max_workers,
@@ -149,7 +134,7 @@ def fetch_unidentified_details(
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = _parse_args(argv)
+    args = parse_args(argv)
     result = fetch_unidentified_details(args)
     if args.parsed:
         result = {**result, "cases": CaseParser().parse_cases(result["cases"], "Unidentified Persons")}

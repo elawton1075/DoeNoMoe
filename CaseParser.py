@@ -33,6 +33,21 @@ from CaseModels import (
 _NAME_KEYS = ("displayName", "name", "label", "value", "description")
 
 
+def has_case_photo(case: Dict[str, Any]) -> bool:
+    """Return True when case has image content or image URL pointers."""
+    images = case.get("images")
+    if isinstance(images, list) and len(images) > 0:
+        return True
+
+    default_image = case.get("defaultImage")
+    if isinstance(default_image, dict) and len(default_image) > 0:
+        return True
+
+    thumb = case.get("hrefDefaultImageThumbnail")
+    poster = case.get("hrefDefaultImagePoster")
+    return bool(thumb or poster)
+
+
 class CaseParser:
     """Parse a NamUs full case payload into typed models and flattened fields."""
 
@@ -349,12 +364,11 @@ class CaseParser:
 
     def build_media(self, case: Dict[str, Any]) -> CaseMedia:
         image_count=self._count(case, "images")
-        document_count=self._count(case, "documents"),
+        document_count=self._count(case, "documents")
 
         return CaseMedia(
-            has_photo=image_count>0,
+            has_photo=has_case_photo(case),
             image_count=image_count,
-            has_document=document_count>0,
             document_count=document_count,
         )
 

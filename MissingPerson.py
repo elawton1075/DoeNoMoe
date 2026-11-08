@@ -88,7 +88,7 @@ def build_search_params(
     return params
 
 
-def _server_payload(search_params: Dict[str, Any]) -> Dict[str, Any]:
+def server_payload(search_params: Dict[str, Any]) -> Dict[str, Any]:
     """Extract only the keys the Search endpoint accepts."""
     allowed = {"take", "skip", "projections", "predicates", "orderBy"}
     payload = {k: v for k, v in search_params.items() if k in allowed}
@@ -117,7 +117,7 @@ def search_missing_persons(
     Response shape: ``{"count": int, "results": [{"namus2Number": int, ...}]}``.
     """
     http = session or requests
-    payload = _server_payload(search_params)
+    payload = server_payload(search_params)
     response = http.post(url, headers=DEFAULT_HEADERS, json=payload, timeout=timeout)
     response.raise_for_status()
     return response.json()
@@ -142,7 +142,7 @@ def fetch_case_detail(
 # ---------------------------------------------------------------------------
 # Normalization + filtering
 # ---------------------------------------------------------------------------
-def _extract_state(case: Dict[str, Any]) -> str:
+def extract_state(case: Dict[str, Any]) -> str:
     address = ((case.get("sighting") or {}).get("address")) or {}
     state = address.get("state")
     if isinstance(state, dict):
@@ -150,12 +150,12 @@ def _extract_state(case: Dict[str, Any]) -> str:
     return state or "N/A"
 
 
-def _extract_city(case: Dict[str, Any]) -> str:
+def extract_city(case: Dict[str, Any]) -> str:
     address = ((case.get("sighting") or {}).get("address")) or {}
     return address.get("city") or "N/A"
 
 
-def _extract_sex(case: Dict[str, Any]) -> str:
+def extract_sex(case: Dict[str, Any]) -> str:
     sex = (case.get("subjectDescription") or {}).get("sex")
     if isinstance(sex, dict):
         return sex.get("name") or "N/A"
@@ -166,7 +166,7 @@ def _extract_sex(case: Dict[str, Any]) -> str:
     return sex or "N/A"
 
 
-def _extract_age(case: Dict[str, Any]) -> Any:
+def extract_age(case: Dict[str, Any]) -> Any:
     subj = case.get("subjectIdentification") or {}
     return (
         subj.get("computedMissingMinAge")
@@ -176,7 +176,7 @@ def _extract_age(case: Dict[str, Any]) -> Any:
     )
 
 
-def _normalize_case(case: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_case(case: Dict[str, Any]) -> Dict[str, Any]:
     subj = case.get("subjectIdentification") or {}
     name = " ".join(
         p for p in (subj.get("firstName"), subj.get("lastName")) if p
@@ -191,9 +191,9 @@ def _normalize_case(case: Dict[str, Any]) -> Dict[str, Any]:
         "Name": name,
         "Date of Birth": subj.get("computedDateOfBirth")
         or case.get("dateOfBirth", "N/A"),
-        "Age": _extract_age(case),
-        "Sex": _extract_sex(case),
-        "Location": f"{_extract_city(case)}, {_extract_state(case)}",
+        "Age": extract_age(case),
+        "Sex": extract_sex(case),
+        "Location": f"{extract_city(case)}, {extract_state(case)}",
         "Details": details,
     }
 
@@ -210,19 +210,19 @@ def process_missing_persons_data(
         cases = data.get("results") or data.get("cases") or []
     else:
         cases = list(data)
-    return [_normalize_case(c) for c in cases]
+    return [normalize_case(c) for c in cases]
 
 
-def _matches_filters(case: Dict[str, Any], flt: Dict[str, Any]) -> bool:
+def matches_filters(case: Dict[str, Any], flt: Dict[str, Any]) -> bool:
     if not flt:
         return True
     state = flt.get("state")
-    if state and _extract_state(case).upper() != state.upper():
+    if state and extract_state(case).upper() != state.upper():
         return False
     sex = flt.get("sex")
-    if sex and _extract_sex(case).lower() != sex.lower():
+    if sex and extract_sex(case).lower() != sex.lower():
         return False
-    age = _extract_age(case)
+    age = extract_age(case)
     if isinstance(age, (int, float)):
         if flt.get("age_min") is not None and age < flt["age_min"]:
             return False
@@ -254,7 +254,7 @@ def fetch_cases(
                 details = list(pool.map(get_detail, ids))
 
         flt = search_params.get("_client_filters") or {}
-        filtered = [c for c in details if _matches_filters(c, flt)]
+        filtered = [c for c in details if matches_filters(c, flt)]
         return process_missing_persons_data(filtered)
     finally:
         if owns_session:
@@ -264,7 +264,7 @@ def fetch_cases(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Query NamUs Missing Persons.")
     p.add_argument("--take", type=int, default=100)
     p.add_argument("--skip", type=int, default=0)
@@ -277,7 +277,7 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = _parse_args(argv)
+    args = parse_args(argv)
     params = build_search_params(
         take=args.take,
         skip=args.skip,
@@ -286,7 +286,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         age_max=args.age_max,
         sex=args.sex,
     )
-    print(f"Query: {_server_payload(params)}", file=sys.stderr)
+    print(f"Query: {server_payload(params)}", file=sys.stderr)
     cases = fetch_cases(params)
     print(f"Returned: {len(cases)}", file=sys.stderr)
 

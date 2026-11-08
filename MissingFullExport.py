@@ -21,7 +21,7 @@ from CaseParser import CaseParser
 CASE_LINK_TEMPLATE = "https://www.namus.gov/MissingPersons/Case#/{id}?nav"
 
 
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=(
             "Fetch full Missing Persons case details and enrich each record "
@@ -60,7 +60,7 @@ def enrich_case(case: Dict[str, Any], fallback_id: Optional[int] = None) -> Dict
     return enriched
 
 
-def _fetch_detail_batch(
+def fetch_detail_batch(
     ids: List[int],
     session: requests.Session,
     max_workers: int,
@@ -111,7 +111,7 @@ def fetch_missing_details(
                 skip += args.take
 
         deduped_ids = list(dict.fromkeys(all_ids))
-        details = _fetch_detail_batch(
+        details = fetch_detail_batch(
             deduped_ids,
             session=session,
             max_workers=args.max_workers,
@@ -130,7 +130,7 @@ def fetch_missing_details(
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = _parse_args(argv)
+    args = parse_args(argv)
     result = fetch_missing_details(args)
     if args.parsed:
         result = {**result, "cases": CaseParser().parse_cases(result["cases"], "Missing Persons")}

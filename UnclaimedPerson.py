@@ -101,7 +101,7 @@ def build_search_params(
     return params
 
 
-def _server_payload(search_params: Dict[str, Any]) -> Dict[str, Any]:
+def server_payload(search_params: Dict[str, Any]) -> Dict[str, Any]:
     """Extract only the keys the Search endpoint accepts."""
     allowed = {"take", "skip", "projections", "predicates", "orderBy"}
     payload = {k: v for k, v in search_params.items() if k in allowed}
@@ -130,7 +130,7 @@ def search_unclaimed_persons(
     Response shape: ``{"count": int, "results": [{"namus2Number": int, ...}]}``.
     """
     http = session or requests
-    payload = _server_payload(search_params)
+    payload = server_payload(search_params)
     response = http.post(url, headers=DEFAULT_HEADERS, json=payload, timeout=timeout)
     response.raise_for_status()
     return response.json()
@@ -155,7 +155,7 @@ def fetch_case_detail(
 # ---------------------------------------------------------------------------
 # Extraction helpers
 # ---------------------------------------------------------------------------
-def _extract_state(case: Dict[str, Any]) -> str:
+def extract_state(case: Dict[str, Any]) -> str:
     address = ((case.get("circumstances") or {}).get("address")) or {}
     state = address.get("state")
     if isinstance(state, dict):
@@ -163,7 +163,7 @@ def _extract_state(case: Dict[str, Any]) -> str:
     return state or "N/A"
 
 
-def _extract_city(case: Dict[str, Any]) -> str:
+def extract_city(case: Dict[str, Any]) -> str:
     address = ((case.get("circumstances") or {}).get("address")) or {}
     city = address.get("city")
     if city:
@@ -176,21 +176,21 @@ def _extract_city(case: Dict[str, Any]) -> str:
     return "N/A"
 
 
-def _extract_sex(case: Dict[str, Any]) -> str:
+def extract_sex(case: Dict[str, Any]) -> str:
     sex = (case.get("subjectIdentification") or {}).get("sex")
     if isinstance(sex, dict):
         return sex.get("name") or "N/A"
     return sex or "N/A"
 
 
-def _extract_ethnicity(case: Dict[str, Any]) -> str:
+def extract_ethnicity(case: Dict[str, Any]) -> str:
     eth = (case.get("subjectIdentification") or {}).get("primaryEthnicity")
     if isinstance(eth, dict):
         return eth.get("name") or "N/A"
     return eth or "N/A"
 
 
-def _extract_year_of_birth(case: Dict[str, Any]) -> Optional[int]:
+def extract_year_of_birth(case: Dict[str, Any]) -> Optional[int]:
     yob = (case.get("subjectIdentification") or {}).get("yearOfBirth")
     try:
         return int(yob) if yob is not None else None
@@ -198,11 +198,11 @@ def _extract_year_of_birth(case: Dict[str, Any]) -> Optional[int]:
         return None
 
 
-def _extract_date_body_found(case: Dict[str, Any]) -> str:
+def extract_date_body_found(case: Dict[str, Any]) -> str:
     return (case.get("circumstances") or {}).get("dateBodyFound") or "N/A"
 
 
-def _extract_year_body_found(case: Dict[str, Any]) -> Optional[int]:
+def extract_year_body_found(case: Dict[str, Any]) -> Optional[int]:
     d = (case.get("circumstances") or {}).get("dateBodyFound")
     if not d:
         return None
@@ -212,23 +212,23 @@ def _extract_year_body_found(case: Dict[str, Any]) -> Optional[int]:
         return None
 
 
-def _extract_age_at_recovery(case: Dict[str, Any]) -> Optional[int]:
-    yob = _extract_year_of_birth(case)
-    yr = _extract_year_body_found(case)
+def extract_age_at_recovery(case: Dict[str, Any]) -> Optional[int]:
+    yob = extract_year_of_birth(case)
+    yr = extract_year_body_found(case)
     if yob is None or yr is None:
         return None
     age = yr - yob
     return age if 0 <= age <= 130 else None
 
 
-def _extract_name(case: Dict[str, Any]) -> str:
+def extract_name(case: Dict[str, Any]) -> str:
     subj = case.get("subjectIdentification") or {}
     parts = [subj.get("firstName"), subj.get("middleName"), subj.get("lastName")]
     name = " ".join(p for p in parts if p).strip()
     return name or "Unknown"
 
 
-def _extract_case_number(case: Dict[str, Any]) -> str:
+def extract_case_number(case: Dict[str, Any]) -> str:
     return (
         case.get("idFormatted")
         or case.get("caseNumber")
@@ -236,7 +236,7 @@ def _extract_case_number(case: Dict[str, Any]) -> str:
     )
 
 
-def _extract_agency(case: Dict[str, Any]) -> str:
+def extract_agency(case: Dict[str, Any]) -> str:
     agencies = case.get("investigatingAgencies") or []
     for a in agencies:
         name = (a or {}).get("name")
@@ -248,18 +248,18 @@ def _extract_agency(case: Dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 # Normalization + filtering
 # ---------------------------------------------------------------------------
-def _normalize_case(case: Dict[str, Any]) -> Dict[str, Any]:
-    age = _extract_age_at_recovery(case)
+def normalize_case(case: Dict[str, Any]) -> Dict[str, Any]:
+    age = extract_age_at_recovery(case)
     return {
-        "Case Number": _extract_case_number(case),
-        "Name": _extract_name(case),
-        "Year of Birth": _extract_year_of_birth(case) or "N/A",
+        "Case Number": extract_case_number(case),
+        "Name": extract_name(case),
+        "Year of Birth": extract_year_of_birth(case) or "N/A",
         "Age at Recovery": age if age is not None else "N/A",
-        "Sex": _extract_sex(case),
-        "Ethnicity": _extract_ethnicity(case),
-        "Date Body Found": _extract_date_body_found(case),
-        "Location": f"{_extract_city(case)}, {_extract_state(case)}",
-        "Investigating Agency": _extract_agency(case),
+        "Sex": extract_sex(case),
+        "Ethnicity": extract_ethnicity(case),
+        "Date Body Found": extract_date_body_found(case),
+        "Location": f"{extract_city(case)}, {extract_state(case)}",
+        "Investigating Agency": extract_agency(case),
         "Case Resolved": bool(case.get("caseIsResolved", False)),
     }
 
@@ -276,25 +276,25 @@ def process_unclaimed_persons_data(
         cases = data.get("results") or data.get("cases") or []
     else:
         cases = list(data)
-    return [_normalize_case(c) for c in cases]
+    return [normalize_case(c) for c in cases]
 
 
-def _matches_filters(case: Dict[str, Any], flt: Dict[str, Any]) -> bool:
+def matches_filters(case: Dict[str, Any], flt: Dict[str, Any]) -> bool:
     if not flt:
         return True
     state = flt.get("state")
-    if state and _extract_state(case).upper() != state.upper():
+    if state and extract_state(case).upper() != state.upper():
         return False
     sex = flt.get("sex")
-    if sex and _extract_sex(case).lower() != sex.lower():
+    if sex and extract_sex(case).lower() != sex.lower():
         return False
     eth = flt.get("race_ethnicity")
-    if eth and _extract_ethnicity(case).lower() != eth.lower():
+    if eth and extract_ethnicity(case).lower() != eth.lower():
         return False
     if flt.get("only_unresolved") and case.get("caseIsResolved"):
         return False
 
-    yob = _extract_year_of_birth(case)
+    yob = extract_year_of_birth(case)
     yob_min, yob_max = flt.get("year_of_birth_min"), flt.get("year_of_birth_max")
     if yob_min is not None or yob_max is not None:
         if yob is None:
@@ -306,7 +306,7 @@ def _matches_filters(case: Dict[str, Any], flt: Dict[str, Any]) -> bool:
 
     amin, amax = flt.get("age_min"), flt.get("age_max")
     if amin is not None or amax is not None:
-        age = _extract_age_at_recovery(case)
+        age = extract_age_at_recovery(case)
         if age is None:
             return False
         if amin is not None and age < amin:
@@ -339,7 +339,7 @@ def fetch_cases(
                 details = list(pool.map(get_detail, ids))
 
         flt = search_params.get("_client_filters") or {}
-        filtered = [c for c in details if _matches_filters(c, flt)]
+        filtered = [c for c in details if matches_filters(c, flt)]
         return process_unclaimed_persons_data(filtered)
     finally:
         if owns_session:
@@ -349,7 +349,7 @@ def fetch_cases(
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Query NamUs Unclaimed Persons.")
     p.add_argument("--take", type=int, default=100)
     p.add_argument("--skip", type=int, default=0)
@@ -371,7 +371,7 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = _parse_args(argv)
+    args = parse_args(argv)
     params = build_search_params(
         take=args.take,
         skip=args.skip,
@@ -384,7 +384,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         age_max=args.age_max,
         only_unresolved=args.only_unresolved,
     )
-    print(f"Query: {_server_payload(params)}", file=sys.stderr)
+    print(f"Query: {server_payload(params)}", file=sys.stderr)
     cases = fetch_cases(params)
     print(f"Returned: {len(cases)}", file=sys.stderr)
 

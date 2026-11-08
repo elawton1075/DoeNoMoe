@@ -85,7 +85,7 @@ def fetch_counts(args: argparse.Namespace) -> Dict[str, Any]:
     }
 
 
-def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Count records across Missing, Unidentified, and Unclaimed NamUs case sets."
     )
@@ -109,7 +109,7 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = _parse_args(argv)
+    args = parse_args(argv)
     result = fetch_counts(args)
 
     if args.json:
